@@ -112,17 +112,20 @@ export class Seda {
   async #request<T>(path: string, init: RequestInit = {}): Promise<T> {
     let response: Response;
     try {
+      const targetAddressSpace = addressSpace(this.#baseUrl);
       response = await this.#fetch(new URL(path, this.#baseUrl), {
         ...init,
         // Chrome uses this hint to request Local Network Access when a public
-        // HTTPS app connects to Seda's loopback service. Other browsers ignore
-        // unknown fetch options.
-        targetAddressSpace: "local",
+        // HTTPS app connects to Seda. It distinguishes the loopback and private
+        // LAN address spaces; other browsers ignore unknown fetch options.
+        ...(targetAddressSpace ? { targetAddressSpace } : {}),
         headers: {
           ...Object.fromEntries(new Headers(init.headers).entries()),
           authorization: `Bearer ${this.#token}`,
         },
-      } as RequestInit & { targetAddressSpace: "local" });
+      } as RequestInit & {
+        targetAddressSpace?: "local" | "loopback";
+      });
     } catch (cause) {
       throw clientError("could not reach the Seda service", cause);
     }
@@ -144,6 +147,40 @@ export class Seda {
     }
     return (await response.json()) as T;
   }
+}
+
+function addressSpace(url: URL): "local" | "loopback" | undefined {
+  const host = url.hostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "[::1]" ||
+    /^127(?:\.\d{1,3}){3}$/.test(host)
+  ) {
+    return "loopback";
+  }
+  if (
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host) ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(host) ||
+    /^169\.254\.\d{1,3}\.\d{1,3}$/.test(host)
+  ) {
+    return "local";
+  }
+  const match = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(host);
+  if (match?.[1] && Number(match[1]) >= 16 && Number(match[1]) <= 31) {
+    return "local";
+  }
+  if (
+    host.startsWith("[fc") ||
+    host.startsWith("[fd") ||
+    host.startsWith("[fe8") ||
+    host.startsWith("[fe9") ||
+    host.startsWith("[fea") ||
+    host.startsWith("[feb")
+  ) {
+    return "local";
+  }
+  return undefined;
 }
 
 function ownedBytes(

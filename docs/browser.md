@@ -245,8 +245,9 @@ string, or analytics.
 - The page must be a secure context. HTTPS and loopback development origins
   such as `http://localhost` qualify for microphone access.
 - Current Chromium also asks the user for Local Network Access when a public
-  HTTPS origin connects to Seda on loopback. The client supplies Chromium's
-  `targetAddressSpace: "local"` fetch hint automatically.
+  HTTPS origin connects to Seda. The client automatically supplies the correct
+  `targetAddressSpace` hint: `"loopback"` for localhost and `"local"` for a
+  private LAN address.
 - Pass the page's exact origin to `seda serve --allow-origin ...` or
   `SedaNode.start({ allowedOrigins: [...] })`.
 - Seda answers authenticated CORS preflights only for configured origins and

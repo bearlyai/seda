@@ -97,14 +97,28 @@ test.afterAll(async () => {
 test("captures the browser microphone and streams a final transcript", async ({
   page,
 }) => {
-  await page.goto(pageUrl);
-  await page.getByRole("button", { name: "Start listening" }).click();
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
 
-  await expect(page.getByTestId("state")).toHaveText("Listening");
+  await page.goto(pageUrl);
+  const state = page.getByTestId("state");
+  const start = page.getByRole("button", { name: "Start listening" });
+  await expect(state).toHaveText("Ready");
+  await expect(start).toBeEnabled();
+  await start.click();
+
+  await expect(state, browserErrors.join("\n")).toHaveText("Listening");
   await expect(page.getByTestId("live")).toHaveText("hello world");
   await page.getByRole("button", { name: "Stop listening" }).click();
 
-  await expect(page.getByTestId("state")).toHaveText("Complete");
+  await expect(state, browserErrors.join("\n")).toHaveText("Complete");
   await expect(page.getByTestId("final")).toHaveText("hello world");
   await expect
     .poll(() =>
@@ -116,6 +130,7 @@ test("captures the browser microphone and streams a final transcript", async ({
       }),
     )
     .toBe(true);
+  expect(browserErrors).toEqual([]);
 });
 
 function testPage(ready: { address: string; token: string }): string {
@@ -126,47 +141,69 @@ function testPage(ready: { address: string; token: string }): string {
   return `<!doctype html>
 <html lang="en">
   <body>
-    <button id="start">Start listening</button>
+    <button id="start" disabled>Start listening</button>
     <button id="stop" disabled>Stop listening</button>
-    <p data-testid="state">Ready</p>
+    <p data-testid="state">Connecting</p>
     <p data-testid="live"></p>
     <p data-testid="final"></p>
     <script type="module">
       import { Seda } from "/seda/index.js";
-      const seda = await Seda.connect(${connection});
-      let microphone;
-      const getUserMedia = navigator.mediaDevices.getUserMedia.bind(
-        navigator.mediaDevices,
-      );
-      navigator.mediaDevices.getUserMedia = async (constraints) => {
-        const stream = await getUserMedia(constraints);
-        window.__sedaTracks = stream.getTracks();
-        return stream;
-      };
       const state = document.querySelector('[data-testid="state"]');
       const live = document.querySelector('[data-testid="live"]');
       const final = document.querySelector('[data-testid="final"]');
       const start = document.querySelector("#start");
       const stop = document.querySelector("#stop");
+      const reportError = (error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        state.textContent = "Error: " + message;
+        window.__sedaError = message;
+        console.error(error);
+      };
 
-      start.addEventListener("click", async () => {
-        microphone = await seda.microphone({
-          language: "en",
-          onTranscript: (update) => {
-            live.textContent = update.text;
-          },
+      try {
+        const seda = await Seda.connect(${connection});
+        let microphone;
+        const getUserMedia = navigator.mediaDevices.getUserMedia.bind(
+          navigator.mediaDevices,
+        );
+        navigator.mediaDevices.getUserMedia = async (constraints) => {
+          const stream = await getUserMedia(constraints);
+          window.__sedaTracks = stream.getTracks();
+          return stream;
+        };
+
+        start.addEventListener("click", async () => {
+          try {
+            microphone = await seda.microphone({
+              language: "en",
+              onTranscript: (update) => {
+                live.textContent = update.text;
+              },
+            });
+            state.textContent = "Listening";
+            start.disabled = true;
+            stop.disabled = false;
+          } catch (error) {
+            reportError(error);
+          }
         });
-        state.textContent = "Listening";
-        start.disabled = true;
-        stop.disabled = false;
-      });
 
-      stop.addEventListener("click", async () => {
-        const transcript = await microphone.stop();
-        final.textContent = transcript.text;
-        state.textContent = "Complete";
-        stop.disabled = true;
-      });
+        stop.addEventListener("click", async () => {
+          try {
+            const transcript = await microphone.stop();
+            final.textContent = transcript.text;
+            state.textContent = "Complete";
+            stop.disabled = true;
+          } catch (error) {
+            reportError(error);
+          }
+        });
+
+        state.textContent = "Ready";
+        start.disabled = false;
+      } catch (error) {
+        reportError(error);
+      }
     </script>
   </body>
 </html>`;
