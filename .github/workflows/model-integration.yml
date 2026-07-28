@@ -29,7 +29,9 @@ jobs:
           - name: Windows x64
             runner: windows-2025
           - name: macOS arm64
-            runner: macos-14
+            # The shipped arm64 runtime is Metal-only. Standard macOS runners
+            # do not expose GPU acceleration; xlarge runners do.
+            runner: macos-14-xlarge
 
     env:
       SEDA_HOME: ${{ github.workspace }}/.seda-ci

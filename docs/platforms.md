@@ -8,7 +8,8 @@
 - Minimum operating system: macOS 14
 - Inference: parakeet.cpp Metal build
 - Integration: binary, CLI, Node 22, Electron main
-- CI: `macos-14` arm64 GitHub-hosted runner, fixture and real model
+- CI: `macos-14` arm64 for the full fixture suite; GPU-backed
+  `macos-14-xlarge` for the real Metal model
 
 The embedding application owns microphone and Accessibility permissions if it
 captures global push-to-talk or inserts into other applications.
