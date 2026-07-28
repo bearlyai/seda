@@ -1,0 +1,25 @@
+# Keep source and configuration bytes identical across every checkout.
+* text=auto
+
+*.rs text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.ts text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+
+# Native Windows command scripts should retain Windows line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Models, audio, archives, and images must never be normalized.
+*.gguf binary
+*.wav binary
+*.zip binary
+*.tar.gz binary
+*.png binary
+*.jpg binary
+*.jpeg binary
