@@ -137,7 +137,10 @@ jobs:
           merge-multiple: true
 
       - name: Create checksums
-        run: sha256sum dist/* > dist/SHA256SUMS
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          sha256sum --check SHA256SUMS
 
       - name: Publish release
         env:
