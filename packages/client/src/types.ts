@@ -47,6 +47,22 @@ export interface ListenOptions {
   language?: string;
 }
 
+export interface MicrophoneOptions extends ListenOptions {
+  deviceId?: string;
+  echoCancellation?: boolean;
+  noiseSuppression?: boolean;
+  autoGainControl?: boolean;
+  signal?: AbortSignal;
+  onTranscript?: (update: TranscriptUpdate) => void;
+}
+
+export interface SessionEventMap {
+  transcript: TranscriptUpdate;
+  "end-of-utterance": { atMs: number };
+  backchannel: { atMs: number };
+  error: import("./error.js").SedaError;
+}
+
 export interface SessionCreated {
   id: string;
   websocketPath: string;

@@ -2,18 +2,12 @@ import { clientError, SedaError } from "./error.js";
 import type {
   ErrorBody,
   ServerEvent,
+  SessionEventMap,
   Transcript,
   TranscriptUpdate,
   WebSocketFactory,
   WebSocketLike,
 } from "./types.js";
-
-type SessionEventMap = {
-  transcript: TranscriptUpdate;
-  "end-of-utterance": { atMs: number };
-  backchannel: { atMs: number };
-  error: SedaError;
-};
 
 type Listener<K extends keyof SessionEventMap> = (
   event: SessionEventMap[K],

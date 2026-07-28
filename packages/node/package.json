@@ -1,6 +1,6 @@
 {
   "name": "@bearlyai/seda-node",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lifecycle-managed Seda sidecar for Node and Electron",
   "type": "module",
   "license": "Apache-2.0",

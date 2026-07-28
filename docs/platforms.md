@@ -14,8 +14,9 @@
   streaming path is tested on physical Apple Silicon because the upstream
   runtime hangs during inference on GitHub's macOS hosts.
 
-The embedding application owns microphone and Accessibility permissions if it
-captures global push-to-talk or inserts into other applications.
+The browser/Electron renderer can use `seda.microphone()` for page-level
+capture. The embedding application still owns global shortcut and Accessibility
+permissions when it inserts into other applications.
 
 ### Windows x64
 
@@ -25,7 +26,8 @@ captures global push-to-talk or inserts into other applications.
 - Integration: `.exe`, CLI, Node 22, Electron main
 - CI: `windows-2025` x64 GitHub-hosted runner, fixture and real model
 
-The host owns microphone consent and any keyboard hook or UI Automation access.
+Browser/Electron microphone capture is supported. The host owns any global
+keyboard hook or UI Automation access.
 
 ### Linux x64
 
@@ -40,10 +42,16 @@ compositors, which is another reason they remain in the host application.
 
 ## Browser
 
-The `@bearlyai/seda` client can connect from a permitted browser origin today.
-This is useful for a local web UI or an app that has an explicit Seda companion.
-It does not make an arbitrary public web page capable of silently launching a
-native daemon.
+The `@bearlyai/seda` client has a high-level `microphone()` API today. It uses
+`getUserMedia` and AudioWorklet, resamples to 16 kHz mono PCM, streams live
+revisions, and releases capture on `stop()` or `cancel()`. A Chromium
+integration test covers the entire browser-to-daemon flow on every pull
+request.
+
+The page must be a secure context, its exact origin must be allowed by the
+daemon, and an app launcher must privately hand it the loopback address and
+ephemeral token. This does not make an arbitrary public page capable of
+silently installing or launching a native daemon.
 
 An in-browser WASM host is planned as a separate adapter. It will use a worker,
 browser-native model storage, and the same session semantics.
@@ -57,5 +65,6 @@ browser-native model storage, and the same session semantics.
 - optional Moonshine and sherpa-onnx adapters
 - measured GPU backends on Windows/Linux
 
-“Supported” means a published binary plus hermetic and model-backed CI, not only
-that an upstream runtime can theoretically compile on the target.
+“Supported” means a published binary plus hermetic integration coverage and
+model-backed validation, not only that an upstream runtime can theoretically
+compile on the target.

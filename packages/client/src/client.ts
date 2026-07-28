@@ -1,9 +1,11 @@
 import { clientError, SedaError } from "./error.js";
+import { MicrophoneSession } from "./microphone.js";
 import { Session } from "./session.js";
 import type {
   Capabilities,
   ErrorBody,
   ListenOptions,
+  MicrophoneOptions,
   SessionCreated,
   Status,
   Transcript,
@@ -93,16 +95,34 @@ export class Seda {
     );
   }
 
+  /**
+   * Opens the browser microphone, resamples it to Seda's wire format, and
+   * starts streaming immediately.
+   */
+  microphone(options: MicrophoneOptions = {}): Promise<MicrophoneSession> {
+    return MicrophoneSession.start(
+      () =>
+        this.listen(
+          options.language === undefined ? {} : { language: options.language },
+        ),
+      options,
+    );
+  }
+
   async #request<T>(path: string, init: RequestInit = {}): Promise<T> {
     let response: Response;
     try {
       response = await this.#fetch(new URL(path, this.#baseUrl), {
         ...init,
+        // Chrome uses this hint to request Local Network Access when a public
+        // HTTPS app connects to Seda's loopback service. Other browsers ignore
+        // unknown fetch options.
+        targetAddressSpace: "local",
         headers: {
           ...Object.fromEntries(new Headers(init.headers).entries()),
           authorization: `Bearer ${this.#token}`,
         },
-      });
+      } as RequestInit & { targetAddressSpace: "local" });
     } catch (cause) {
       throw clientError("could not reach the Seda service", cause);
     }

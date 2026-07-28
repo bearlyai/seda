@@ -68,3 +68,37 @@ jobs:
 
       - name: Build JavaScript packages
         run: pnpm build
+
+  browser:
+    name: Browser microphone
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Set up toolchains
+        shell: bash
+        run: |
+          npm install --global pnpm@11.10.0
+          rustup set profile minimal
+          rustup toolchain install 1.90.0
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Build browser client and fixture sidecar
+        run: |
+          pnpm --filter @bearlyai/seda build
+          cargo build --locked -p seda-cli --features test-engine
+
+      - name: Test browser microphone flow
+        run: pnpm test:browser

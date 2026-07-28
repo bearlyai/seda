@@ -47,6 +47,62 @@ async fn protects_every_control_plane_endpoint() {
 }
 
 #[tokio::test]
+async fn allows_browser_preflight_only_for_configured_origins() {
+    let state = ServerState::new(
+        Arc::new(FixtureEngine::default()),
+        TOKEN,
+        vec!["http://127.0.0.1:4173".to_owned()],
+    )
+    .expect("valid state");
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("test listener binds");
+    let address = listener.local_addr().expect("listener has address");
+    tokio::spawn(async move {
+        axum::serve(listener, app(state))
+            .await
+            .expect("test server runs");
+    });
+
+    let response = reqwest::Client::new()
+        .request(
+            reqwest::Method::OPTIONS,
+            format!("http://{address}/v1/status"),
+        )
+        .header("origin", "http://127.0.0.1:4173")
+        .header("access-control-request-method", "GET")
+        .header("access-control-request-headers", "authorization")
+        .send()
+        .await
+        .expect("preflight succeeds");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("access-control-allow-origin")
+            .expect("allow-origin header"),
+        "http://127.0.0.1:4173"
+    );
+
+    let denied = reqwest::Client::new()
+        .request(
+            reqwest::Method::OPTIONS,
+            format!("http://{address}/v1/status"),
+        )
+        .header("origin", "https://untrusted.example")
+        .header("access-control-request-method", "GET")
+        .header("access-control-request-headers", "authorization")
+        .send()
+        .await
+        .expect("denied preflight returns a response");
+    assert!(
+        denied.headers().get("access-control-allow-origin").is_none(),
+        "unconfigured origins must not receive CORS permission"
+    );
+}
+
+#[tokio::test]
 async fn transcribes_a_real_wav_request_through_the_full_http_stack() {
     let address = spawn_server().await;
     let response = reqwest::Client::new()

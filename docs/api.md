@@ -29,12 +29,15 @@ const seda = await SedaNode.start({
 await seda.listen({ language?: string }): Promise<Session>;
 await seda.transcribe(wav, { language?: string }): Promise<Transcript>;
 await seda.capabilities(): Promise<Capabilities>;
+seda.browserConnection(): { baseUrl: string; token: string };
 await seda.close(): Promise<void>;
 ```
 
 `SedaNode.start()` spawns the binary directly without a shell, binds only to a
 random loopback port, reads one structured readiness line, injects a private
 token, and owns child shutdown. It implements `AsyncDisposable`.
+`browserConnection()` is an explicit handoff for a trusted browser or Electron
+renderer; never give it to remote content.
 
 ## Universal JavaScript client
 
@@ -49,9 +52,47 @@ const seda = await Seda.connect({
 await seda.status(): Promise<Status>;
 await seda.capabilities(): Promise<Capabilities>;
 await seda.transcribe(wav, { language?: string }): Promise<Transcript>;
+await seda.microphone(options?: MicrophoneOptions): Promise<MicrophoneSession>;
 await seda.listen({ language?: string }): Promise<Session>;
 ```
 
+### Browser microphone
+
+This is the normal browser entry point:
+
+```ts
+interface MicrophoneOptions {
+  language?: string;
+  deviceId?: string;
+  echoCancellation?: boolean; // default: true
+  noiseSuppression?: boolean; // default: true
+  autoGainControl?: boolean;  // default: true
+  signal?: AbortSignal;
+  onTranscript?: (update: TranscriptUpdate) => void;
+}
+
+const microphone = await seda.microphone({ language: "en" });
+
+microphone.on("transcript", listener): () => void;
+microphone.on("end-of-utterance", listener): () => void;
+microphone.on("backchannel", listener): () => void;
+microphone.on("error", listener): () => void;
+
+await microphone.stop(): Promise<Transcript>;
+await microphone.cancel(): Promise<void>;
+```
+
+`microphone()` calls `getUserMedia`, creates an AudioWorklet, downmixes input,
+resamples the browser's hardware rate to 16 kHz, and starts streaming. `stop()`
+releases every `MediaStreamTrack`, closes the `AudioContext`, commits the
+recognizer, and returns its final result. Call it from a user gesture.
+
+See the [complete browser guide](browser.md) for connection bootstrap and
+push-to-talk examples.
+
+### Advanced PCM session
+
+`listen()` is for hosts that already own capture and produce the wire format.
 `Session` is both event-driven and async-iterable:
 
 ```ts
@@ -85,7 +126,7 @@ Authorization: Bearer <ephemeral token>
 ```json
 {
   "name": "seda",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "protocol": 1,
   "ready": true
 }
@@ -147,6 +188,8 @@ Response:
 
 The ticket expires after 60 seconds and is removed on its first upgrade attempt.
 Browser `Origin` headers are denied unless present in the daemon allowlist.
+HTTP requests with an `Origin` receive CORS permission only when the same exact
+origin was configured.
 
 ## WebSocket
 
@@ -211,10 +254,10 @@ Stable codes include permission, model/download, hardware, audio-device,
 invalid-audio, busy, authentication/origin, cancellation, runtime, and internal
 failures. JavaScript surfaces them as `SedaError`.
 
-## Browser/WASM host shape
+## Future browser/WASM host shape
 
-The universal client already has the browser-facing contract. A future WASM
-host can implement the same `status`, `capabilities`, `transcribe`, and `listen`
-operations in-process. It should not pretend to be a loopback server or expose
-OS-only features. Model storage should use the browser cache/OPFS, and the host
-must explicitly report whether it offers true or buffered streaming.
+The universal client now owns production browser capture. A future WASM host can
+reuse the same `microphone`, `status`, `capabilities`, `transcribe`, and
+`listen` semantics in-process. It should not pretend to be a loopback server or
+expose OS-only features. Model storage should use browser cache/OPFS, and the
+host must explicitly report whether it offers true or buffered streaming.

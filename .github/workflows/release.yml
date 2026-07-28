@@ -85,9 +85,47 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  packages:
+    name: Build / JavaScript packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install and build
+        shell: bash
+        run: |
+          npm install --global pnpm@11.10.0
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Pack installable packages
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          node -e "for(const file of ['packages/client/package.json','packages/node/package.json']){const p=require('./'+file);if(p.version!==process.argv[1]){throw new Error(file+' is '+p.version+', tag is '+process.argv[1])}}" "$version"
+          mkdir -p dist
+          pnpm --filter @bearlyai/seda pack --pack-destination "$PWD/dist"
+          pnpm --filter @bearlyai/seda-node pack --pack-destination "$PWD/dist"
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: javascript-packages
+          path: dist/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
   publish:
     name: Publish GitHub release
-    needs: build
+    needs: [build, packages]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
