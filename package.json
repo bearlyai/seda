@@ -1,0 +1,13 @@
+{
+  "name": "seda-workspace",
+  "private": true,
+  "packageManager": "pnpm@11.10.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm --filter @bearlyai/seda build && pnpm --filter @bearlyai/seda-node build",
+    "check": "pnpm --filter @bearlyai/seda check && pnpm --filter @bearlyai/seda build && pnpm --filter @bearlyai/seda-node check",
+    "test": "pnpm --recursive test"
+  }
+}

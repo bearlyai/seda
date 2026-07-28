@@ -1,0 +1,27 @@
+name: Feature proposal
+description: Propose an API, engine, model, or platform addition
+title: "[proposal] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What application behavior is not possible today?
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: Proposed API
+      description: Show the smallest call site you would like to write.
+      render: typescript
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Runtime and platform tradeoffs
+      description: Include model size, latency, license, and supported targets where relevant.
+    validations:
+      required: true

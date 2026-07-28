@@ -1,0 +1,62 @@
+[workspace]
+members = [
+  "crates/seda-cli",
+  "crates/seda-core",
+  "crates/seda-parakeet",
+  "crates/seda-protocol",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.90"
+license = "Apache-2.0"
+repository = "https://github.com/bearlyai/seda"
+homepage = "https://github.com/bearlyai/seda"
+authors = ["Bearly.AI"]
+
+[workspace.dependencies]
+anyhow = "1.0.98"
+async-trait = "0.1.88"
+axum = { version = "0.8.4", features = ["macros", "ws"] }
+clap = { version = "4.5.40", features = ["derive", "env"] }
+directories = "6.0.0"
+flate2 = "1.1.2"
+futures-util = "0.3.31"
+hex = "0.4.3"
+hound = "3.5.1"
+http = "1.3.1"
+libloading = "0.8.8"
+reqwest = { version = "0.12.20", default-features = false, features = ["json", "rustls-tls", "stream"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+sha2 = "0.10.9"
+subtle = "2.6.1"
+tar = "0.4.44"
+tempfile = "3.20.0"
+thiserror = "2.0.12"
+tokio = { version = "1.45.1", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync"] }
+tokio-tungstenite = "0.27.0"
+tower = { version = "0.5.2", features = ["util"] }
+tower-http = { version = "0.6.6", features = ["catch-panic", "request-id", "trace"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
+url = "2.5.4"
+uuid = { version = "1.17.0", features = ["serde", "v4"] }
+zip = { version = "4.2.0", default-features = false, features = ["deflate"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+unused_must_use = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"

@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build / ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            binary: seda
+            suffix: linux-x64
+            format: tar
+          - name: Windows x64
+            runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            binary: seda.exe
+            suffix: windows-x64
+            format: zip
+          - name: macOS arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+            binary: seda
+            suffix: macos-arm64
+            format: tar
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Rust
+        shell: bash
+        run: |
+          rustup set profile minimal
+          rustup toolchain install 1.90.0
+          rustup target add "${{ matrix.target }}" --toolchain 1.90.0
+
+      - name: Build release binary
+        run: cargo build --locked --release -p seda-cli --target ${{ matrix.target }}
+
+      - name: Package release
+        id: package
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          stem="seda-${version}-${{ matrix.suffix }}"
+          mkdir -p "dist/$stem"
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary }}" "dist/$stem/"
+          cp README.md LICENSE NOTICE "dist/$stem/"
+          mkdir -p "dist/$stem/models"
+          cp models/catalog.json "dist/$stem/models/"
+          if [ "${{ matrix.format }}" = "zip" ]; then
+            (cd dist && 7z a -bd "$stem.zip" "$stem" >/dev/null)
+            echo "path=dist/$stem.zip" >> "$GITHUB_OUTPUT"
+          else
+            tar -C dist -czf "dist/$stem.tar.gz" "$stem"
+            echo "path=dist/$stem.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Attest release artifact
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: ${{ steps.package.outputs.path }}
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.suffix }}
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create checksums
+        run: sha256sum dist/* > dist/SHA256SUMS
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            --title "Seda ${GITHUB_REF_NAME#v}"

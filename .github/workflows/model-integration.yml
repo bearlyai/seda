@@ -1,0 +1,83 @@
+name: Model integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 8 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: model-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compact-model:
+    name: Compact model / ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-24.04
+          - name: Windows x64
+            runner: windows-2025
+          - name: macOS arm64
+            runner: macos-14
+
+    env:
+      SEDA_HOME: ${{ github.workspace }}/.seda-ci
+      SEDA_REAL_AUDIO: ${{ github.workspace }}/.seda-ci/fixtures/speech.wav
+      SEDA_REAL_MODEL: "1"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Set up toolchains
+        shell: bash
+        run: |
+          npm install --global pnpm@11.10.0
+          rustup set profile minimal
+          rustup toolchain install 1.90.0
+
+      - name: Restore verified model cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.SEDA_HOME }}
+          key: seda-model-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('models/catalog.json') }}
+
+      - name: Install and build
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          cargo build --locked -p seda-cli --features test-engine
+
+      - name: Prepare pinned runtime and compact model
+        run: ./target/debug/seda prepare --profile compact --language en --jsonl
+        shell: bash
+
+      - name: Download and verify speech fixture
+        shell: bash
+        run: |
+          mkdir -p "$SEDA_HOME/fixtures"
+          curl --fail --location --silent --show-error \
+            "https://raw.githubusercontent.com/mudler/parakeet.cpp/e747acdaee69b916cef62263ae5f718bda9ff3f3/tests/fixtures/speech.wav" \
+            --output "$SEDA_REAL_AUDIO"
+          node -e "const f=require('node:fs'),c=require('node:crypto');const h=c.createHash('sha256').update(f.readFileSync(process.argv[1])).digest('hex');if(h!==process.argv[2]){console.error(h);process.exit(1)}" \
+            "$SEDA_REAL_AUDIO" \
+            "5fceacff0315d49cb59fcc505bcecf1ed5f2f35c2897b1e65a59f30e5d922150"
+
+      - name: Stream through the real runtime and public Node API
+        run: pnpm --dir packages/node exec vitest run test/real-model.test.ts

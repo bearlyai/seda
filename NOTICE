@@ -1,0 +1,19 @@
+Seda
+Copyright 2026 Bearly.AI
+
+Seda source code is licensed under the Apache License, Version 2.0.
+
+Seda can download third-party artifacts that are not part of the Seda source
+distribution and are governed by their own terms:
+
+- parakeet.cpp: MIT
+  https://github.com/mudler/parakeet.cpp
+- parakeet.cpp GGUF model artifacts: CC-BY-4.0
+  https://huggingface.co/mudler/parakeet-cpp-gguf
+- Parakeet Realtime EOU 120M v1 base model: NVIDIA Open Model License
+  https://huggingface.co/nvidia/parakeet_realtime_eou_120m-v1
+- Nemotron 3.5 ASR Streaming 0.6B base model: OpenMDW 1.1
+  https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b
+
+Exact artifacts and checksums are recorded in models/catalog.json. Downstream
+distributors are responsible for reviewing and preserving applicable notices.

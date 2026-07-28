@@ -1,0 +1,50 @@
+[package]
+name = "seda-cli"
+description = "Local speech service and command-line interface for Seda"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+default-run = "seda"
+
+[lib]
+name = "seda_server"
+
+[[bin]]
+name = "seda"
+path = "src/main.rs"
+
+[features]
+default = []
+test-engine = []
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+clap.workspace = true
+futures-util.workspace = true
+hound.workspace = true
+http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+subtle.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+seda-core = { path = "../seda-core" }
+seda-parakeet = { path = "../seda-parakeet" }
+seda-protocol = { path = "../seda-protocol" }
+uuid.workspace = true
+
+[dev-dependencies]
+http-body-util = "0.1.3"
+reqwest.workspace = true
+tempfile.workspace = true
+tokio-tungstenite.workspace = true
+tower.workspace = true
+
+[lints]
+workspace = true

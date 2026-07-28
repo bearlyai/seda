@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a reproducible Seda failure
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Seda version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - macOS arm64
+        - Windows x64
+        - Linux x64
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Profile and language
+      placeholder: compact / en
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Include the smallest complete command or code sample.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`seda doctor` output"
+      render: json
+    validations:
+      required: true
+  - type: checkboxes
+    id: sensitive
+    attributes:
+      label: Safety
+      options:
+        - label: I removed bearer tokens, private audio, and other secrets.
+          required: true

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "runtimes": [
+    {
+      "id": "parakeet.cpp",
+      "version": "0.4.0",
+      "abi": 5,
+      "license": "MIT",
+      "source": "https://github.com/mudler/parakeet.cpp/tree/v0.4.0",
+      "libraryNames": [
+        "libparakeet.dylib",
+        "libparakeet.so",
+        "parakeet.dll"
+      ],
+      "archives": [
+        {
+          "os": "macos",
+          "arch": "aarch64",
+          "accelerator": "metal",
+          "url": "https://github.com/mudler/parakeet.cpp/releases/download/v0.4.0/parakeet-v0.4.0-lib-macos-metal-arm64.tar.gz",
+          "sha256": "55c029883a9a92fc51b8f28eeee1072b07beeb819aabc1a0d8f8d9db81fc2346",
+          "size": 975651
+        },
+        {
+          "os": "macos",
+          "arch": "x86_64",
+          "accelerator": "cpu",
+          "url": "https://github.com/mudler/parakeet.cpp/releases/download/v0.4.0/parakeet-v0.4.0-lib-macos-cpu-x64.tar.gz",
+          "sha256": "f8fc7caeb5e8130175270ed1397aad685076922df9cf450e1c0dc74709c87cbb",
+          "size": 980570
+        },
+        {
+          "os": "linux",
+          "arch": "x86_64",
+          "accelerator": "cpu",
+          "url": "https://github.com/mudler/parakeet.cpp/releases/download/v0.4.0/parakeet-v0.4.0-lib-linux-cpu-x64.tar.gz",
+          "sha256": "ecc4f91a6d49926e47a04cf61726a40befc564444c6a9d5b436cfad626d7d9a5",
+          "size": 952398
+        },
+        {
+          "os": "windows",
+          "arch": "x86_64",
+          "accelerator": "cpu",
+          "url": "https://github.com/mudler/parakeet.cpp/releases/download/v0.4.0/parakeet-v0.4.0-lib-win-cpu-x64.zip",
+          "sha256": "d07c870010f1a8afbbed3ebe7afc43ec11b46c5dd3bc4ad87d8f23dbf6264c25",
+          "size": 704102
+        }
+      ]
+    }
+  ],
+  "models": [
+    {
+      "id": "parakeet-realtime-eou-120m-q4",
+      "displayName": "Parakeet Realtime EOU 120M Q4",
+      "runtime": "parakeet.cpp",
+      "profiles": ["compact"],
+      "purpose": "realtime",
+      "languages": ["en"],
+      "streaming": "true",
+      "punctuation": false,
+      "wordTimestamps": true,
+      "quantization": "q4_k",
+      "url": "https://huggingface.co/mudler/parakeet-cpp-gguf/resolve/main/realtime_eou_120m-v1-q4_k.gguf",
+      "sha256": "ac9109d0e422bd8aafa899c0f58e1938f4a2846838797a29c04f6a8729033c3c",
+      "size": 129133984,
+      "fileName": "realtime_eou_120m-v1-q4_k.gguf",
+      "license": "CC-BY-4.0; base model: NVIDIA Open Model License",
+      "source": "https://huggingface.co/nvidia/parakeet_realtime_eou_120m-v1"
+    },
+    {
+      "id": "nemotron-3.5-streaming-0.6b-q4",
+      "displayName": "Nemotron 3.5 Streaming 0.6B Q4",
+      "runtime": "parakeet.cpp",
+      "profiles": ["balanced"],
+      "purpose": "realtime",
+      "languages": ["en-US", "en-GB", "es-US", "es-ES", "fr-FR", "fr-CA", "it-IT", "pt-BR", "pt-PT", "nl-NL", "de-DE", "tr-TR", "ru-RU", "ar-AR", "hi-IN", "ja-JP", "ko-KR", "vi-VN", "uk-UA", "pl-PL", "sv-SE", "cs-CZ", "nb-NO", "da-DK", "bg-BG", "fi-FI", "hr-HR", "sk-SK", "zh-CN", "hu-HU", "ro-RO", "et-EE"],
+      "streaming": "true",
+      "punctuation": true,
+      "wordTimestamps": true,
+      "quantization": "q4_k",
+      "url": "https://huggingface.co/mudler/parakeet-cpp-gguf/resolve/main/nemotron-3.5-asr-streaming-0.6b-q4_k.gguf",
+      "sha256": "5ad85eb3f3014c1a300d67b7ccbd23c38c4c952405cbe33a861e19fb2775e84b",
+      "size": 718102624,
+      "fileName": "nemotron-3.5-asr-streaming-0.6b-q4_k.gguf",
+      "license": "CC-BY-4.0; base model: OpenMDW 1.1",
+      "source": "https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b"
+    },
+    {
+      "id": "nemotron-3.5-streaming-0.6b-q8",
+      "displayName": "Nemotron 3.5 Streaming 0.6B Q8",
+      "runtime": "parakeet.cpp",
+      "profiles": ["quality"],
+      "purpose": "realtime",
+      "languages": ["en-US", "en-GB", "es-US", "es-ES", "fr-FR", "fr-CA", "it-IT", "pt-BR", "pt-PT", "nl-NL", "de-DE", "tr-TR", "ru-RU", "ar-AR", "hi-IN", "ja-JP", "ko-KR", "vi-VN", "uk-UA", "pl-PL", "sv-SE", "cs-CZ", "nb-NO", "da-DK", "bg-BG", "fi-FI", "hr-HR", "sk-SK", "zh-CN", "hu-HU", "ro-RO", "et-EE"],
+      "streaming": "true",
+      "punctuation": true,
+      "wordTimestamps": true,
+      "quantization": "q8_0",
+      "url": "https://huggingface.co/mudler/parakeet-cpp-gguf/resolve/main/nemotron-3.5-asr-streaming-0.6b-q8_0.gguf",
+      "sha256": "ba2f13eccd4a5245be728f77e6149bd6a4fdcdd133ff2e08ac6005bcef7a99f1",
+      "size": 983696512,
+      "fileName": "nemotron-3.5-asr-streaming-0.6b-q8_0.gguf",
+      "license": "CC-BY-4.0; base model: OpenMDW 1.1",
+      "source": "https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+/target/
+node_modules/
+/packages/*/dist/
+/.seda/
+*.log
+.DS_Store

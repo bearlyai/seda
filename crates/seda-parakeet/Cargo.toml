@@ -1,0 +1,19 @@
+[package]
+name = "seda-parakeet"
+description = "Safe dynamic adapter for the parakeet.cpp C ABI"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+libloading.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+seda-core = { path = "../seda-core" }
+seda-protocol = { path = "../seda-protocol" }
+
+[lints]
+workspace = true
