@@ -30,7 +30,7 @@ jobs:
           - name: Windows x64
             runner: windows-2025
             mode: stream
-          - name: macOS x64 (batch)
+          - name: macOS x64 (CLI batch)
             runner: macos-15-intel
             mode: batch
 
@@ -84,4 +84,16 @@ jobs:
             "5fceacff0315d49cb59fcc505bcecf1ed5f2f35c2897b1e65a59f30e5d922150"
 
       - name: Stream through the real runtime and public Node API
+        if: matrix.mode == 'stream'
         run: pnpm --dir packages/node exec vitest run test/real-model.test.ts
+
+      - name: Batch-transcribe through the real runtime and public CLI
+        if: matrix.mode == 'batch'
+        shell: bash
+        run: |
+          ./target/debug/seda transcribe "$SEDA_REAL_AUDIO" \
+            --profile compact \
+            --language en \
+            --json > "$RUNNER_TEMP/seda-transcript.json"
+          node -e "const f=require('node:fs');const t=JSON.parse(f.readFileSync(process.argv[1],'utf8'));const expected=\"well i don't wish to see it any more observed phoebe turning away her eyes it is certainly very like the old portrait\";if(t.text!==expected||!Array.isArray(t.words)||t.words.at(-1)?.text!=='portrait'){console.error(t);process.exit(1)}" \
+            "$RUNNER_TEMP/seda-transcript.json"
