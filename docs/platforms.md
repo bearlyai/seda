@@ -8,10 +8,11 @@
 - Minimum operating system: macOS 14
 - Inference: parakeet.cpp Metal build
 - Integration: binary, CLI, Node 22, Electron main
-- CI: `macos-14` arm64 for the full fixture suite and real model. Hosted
-  inference forces the CPU backend inside the same Metal-capable library because
-  virtualized Metal can hang; the automatic Metal path is tested on physical
-  Apple Silicon.
+- CI: `macos-14` arm64 for the full build and fixture suite. GitHub-hosted real
+  model inference uses `macos-15-intel` and the pinned CPU archive because the
+  upstream arm64/Metal archive hangs inside GitHub’s virtualized runner, even
+  when its CPU backend is selected. The exact arm64/Metal path is tested on
+  physical Apple Silicon.
 
 The embedding application owns microphone and Accessibility permissions if it
 captures global push-to-talk or inserts into other applications.

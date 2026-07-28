@@ -58,9 +58,11 @@ should read that line and keep the token private.
 | macOS Intel, Linux/Windows ARM, mobile | Later | Adapter work required |
 
 Every pull request runs the Rust server, TypeScript clients, process lifecycle,
-HTTP, and WebSocket integration suites on all three launch platforms. A second
+HTTP, and WebSocket integration suites on all three launch targets. A second
 matrix downloads the pinned compact model and transcribes a checksum-verified
-speech fixture through the real native runtime on all three.
+speech fixture through the real native runtime on Linux, Windows, and macOS.
+The hosted macOS inference lane is Intel/CPU; Apple Silicon build coverage stays
+in the primary matrix and the Metal artifact is tested on physical hardware.
 
 ## APIs
 

@@ -28,8 +28,8 @@ jobs:
             runner: ubuntu-24.04
           - name: Windows x64
             runner: windows-2025
-          - name: macOS arm64
-            runner: macos-14
+          - name: macOS x64
+            runner: macos-15-intel
 
     env:
       SEDA_HOME: ${{ github.workspace }}/.seda-ci
@@ -67,11 +67,6 @@ jobs:
       - name: Prepare pinned runtime and compact model
         run: ./target/debug/seda prepare --profile compact --language en --jsonl
         shell: bash
-
-      - name: Select deterministic macOS CI backend
-        if: runner.os == 'macOS'
-        shell: bash
-        run: echo "PARAKEET_DEVICE=cpu" >> "$GITHUB_ENV"
 
       - name: Download and verify speech fixture
         shell: bash
