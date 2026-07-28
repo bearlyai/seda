@@ -61,8 +61,10 @@ Every pull request runs the Rust server, TypeScript clients, process lifecycle,
 HTTP, and WebSocket integration suites on all three launch targets. A second
 matrix downloads the pinned compact model and transcribes a checksum-verified
 speech fixture through the real native runtime on Linux, Windows, and macOS.
-The hosted macOS inference lane is Intel/CPU; Apple Silicon build coverage stays
-in the primary matrix and the Metal artifact is tested on physical hardware.
+The hosted macOS native lane is Intel/CPU and batch-mode because the upstream
+streaming C API hangs on GitHub’s macOS hosts; Apple Silicon streaming coverage
+stays in the primary fixture matrix and the Metal artifact is tested on
+physical hardware.
 
 ## APIs
 

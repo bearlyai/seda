@@ -26,15 +26,19 @@ jobs:
         include:
           - name: Linux x64
             runner: ubuntu-24.04
+            mode: stream
           - name: Windows x64
             runner: windows-2025
-          - name: macOS x64
+            mode: stream
+          - name: macOS x64 (batch)
             runner: macos-15-intel
+            mode: batch
 
     env:
       SEDA_HOME: ${{ github.workspace }}/.seda-ci
       SEDA_REAL_AUDIO: ${{ github.workspace }}/.seda-ci/fixtures/speech.wav
       SEDA_REAL_MODEL: "1"
+      SEDA_REAL_MODE: ${{ matrix.mode }}
 
     steps:
       - name: Check out source

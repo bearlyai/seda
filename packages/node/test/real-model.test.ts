@@ -31,7 +31,10 @@ afterEach(async () => {
 });
 
 describe("Seda with the pinned native runtime and compact model", () => {
-  it.skipIf(process.env["SEDA_REAL_MODEL"] !== "1")(
+  it.skipIf(
+    process.env["SEDA_REAL_MODEL"] !== "1" ||
+      process.env["SEDA_REAL_MODE"] === "batch",
+  )(
     "streams a verified speech fixture end to end",
     async () => {
       running = await SedaNode.start({
@@ -58,16 +61,47 @@ describe("Seda with the pinned native runtime and compact model", () => {
       }
       const transcript = await session.commit();
 
-      expect(transcript.text).toBe(
-        "well i don't wish to see it any more observed phoebe turning away her eyes it is certainly very like the old portrait",
-      );
+      assertTranscript(transcript);
       expect(partials.length).toBeGreaterThan(0);
-      expect(transcript.words.length).toBeGreaterThan(0);
-      expect(transcript.words.at(-1)?.text).toBe("portrait");
+    },
+    120_000,
+  );
+
+  it.skipIf(
+    process.env["SEDA_REAL_MODEL"] !== "1" ||
+      process.env["SEDA_REAL_MODE"] !== "batch",
+  )(
+    "batch-transcribes a verified speech fixture end to end",
+    async () => {
+      running = await SedaNode.start({
+        binaryPath: binary,
+        profile: "compact",
+        language: "en",
+        ...(process.env["SEDA_HOME"]
+          ? { dataDirectory: process.env["SEDA_HOME"] }
+          : {}),
+        startupTimeoutMs: 60_000,
+      });
+
+      const transcript = await running.transcribe(await readFile(audio), {
+        language: "en",
+      });
+      assertTranscript(transcript);
     },
     120_000,
   );
 });
+
+function assertTranscript(transcript: {
+  text: string;
+  words: Array<{ text: string }>;
+}): void {
+  expect(transcript.text).toBe(
+    "well i don't wish to see it any more observed phoebe turning away her eyes it is certainly very like the old portrait",
+  );
+  expect(transcript.words.length).toBeGreaterThan(0);
+  expect(transcript.words.at(-1)?.text).toBe("portrait");
+}
 
 function readPcm16Mono(wav: Uint8Array): Int16Array {
   const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
