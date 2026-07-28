@@ -97,7 +97,10 @@ async fn allows_browser_preflight_only_for_configured_origins() {
         .await
         .expect("denied preflight returns a response");
     assert!(
-        denied.headers().get("access-control-allow-origin").is_none(),
+        denied
+            .headers()
+            .get("access-control-allow-origin")
+            .is_none(),
         "unconfigured origins must not receive CORS permission"
     );
 }
