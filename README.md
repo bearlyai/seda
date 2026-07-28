@@ -60,12 +60,11 @@ should read that line and keep the token private.
 Every pull request runs the Rust server, TypeScript clients, process lifecycle,
 HTTP, and WebSocket integration suites on all three launch targets. A second
 matrix downloads the pinned compact model and transcribes a checksum-verified
-speech fixture through the real native runtime on Linux, Windows, and macOS.
-The hosted macOS native lane is Intel/CPU and exercises same-thread CLI batch
-inference because the upstream runtime hangs after the daemon thread handoff on
-GitHub’s macOS hosts. Apple Silicon API and streaming coverage stays in the
-primary fixture matrix, while exact Metal inference is tested on physical
-hardware.
+speech fixture through the real native runtime on Linux and Windows. Its macOS
+lane downloads, verifies, and diagnoses the pinned native artifacts; Apple
+Silicon API and streaming behavior stays in the primary fixture matrix. Exact
+Metal inference is tested on physical hardware because the upstream runtime
+hangs during inference on GitHub's macOS hosts.
 
 ## APIs
 

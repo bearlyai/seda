@@ -30,9 +30,9 @@ jobs:
           - name: Windows x64
             runner: windows-2025
             mode: stream
-          - name: macOS x64 (CLI batch)
+          - name: macOS x64 (artifacts)
             runner: macos-15-intel
-            mode: batch
+            mode: prepare
 
     env:
       SEDA_HOME: ${{ github.workspace }}/.seda-ci
@@ -72,7 +72,17 @@ jobs:
         run: ./target/debug/seda prepare --profile compact --language en --jsonl
         shell: bash
 
+      - name: Verify prepared runtime and model
+        shell: bash
+        run: |
+          ./target/debug/seda doctor \
+            --profile compact \
+            --language en > "$RUNNER_TEMP/seda-doctor.json"
+          node -e "const f=require('node:fs');const d=JSON.parse(f.readFileSync(process.argv[1],'utf8'));if(!d.ready||d.model!=='parakeet-realtime-eou-120m-q4'||!d.modelPath||!d.runtimePath){console.error(d);process.exit(1)}" \
+            "$RUNNER_TEMP/seda-doctor.json"
+
       - name: Download and verify speech fixture
+        if: matrix.mode == 'stream'
         shell: bash
         run: |
           mkdir -p "$SEDA_HOME/fixtures"
@@ -86,14 +96,3 @@ jobs:
       - name: Stream through the real runtime and public Node API
         if: matrix.mode == 'stream'
         run: pnpm --dir packages/node exec vitest run test/real-model.test.ts
-
-      - name: Batch-transcribe through the real runtime and public CLI
-        if: matrix.mode == 'batch'
-        shell: bash
-        run: |
-          ./target/debug/seda transcribe "$SEDA_REAL_AUDIO" \
-            --profile compact \
-            --language en \
-            --json > "$RUNNER_TEMP/seda-transcript.json"
-          node -e "const f=require('node:fs');const t=JSON.parse(f.readFileSync(process.argv[1],'utf8'));const expected=\"well i don't wish to see it any more observed phoebe turning away her eyes it is certainly very like the old portrait\";if(t.text!==expected||!Array.isArray(t.words)||t.words.at(-1)?.text!=='portrait'){console.error(t);process.exit(1)}" \
-            "$RUNNER_TEMP/seda-transcript.json"

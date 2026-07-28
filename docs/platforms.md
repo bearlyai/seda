@@ -9,10 +9,10 @@
 - Inference: parakeet.cpp Metal build
 - Integration: binary, CLI, Node 22, Electron main
 - CI: `macos-14` arm64 for the full build and streaming fixture suite.
-  GitHub-hosted native inference uses `macos-15-intel`, the pinned CPU archive,
-  and same-thread CLI batch inference because the runtime hangs after the
-  daemon thread handoff on GitHub’s macOS hosts. The exact arm64/Metal
-  streaming path is tested on physical Apple Silicon.
+  A second `macos-15-intel` lane verifies download, checksum, extraction, and
+  discovery of the pinned CPU runtime and model. The exact arm64/Metal
+  streaming path is tested on physical Apple Silicon because the upstream
+  runtime hangs during inference on GitHub's macOS hosts.
 
 The embedding application owns microphone and Accessibility permissions if it
 captures global push-to-talk or inserts into other applications.
