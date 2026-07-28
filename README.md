@@ -3,49 +3,102 @@
 Local speech-to-text infrastructure with one small, stable API.
 
 Seda—**sedā / صدا**, “sound” or “voice” in Persian—installs a verified native
-runtime and model, runs it as a private local service, and streams transcripts
-into desktop, Electron, Node, or browser applications.
+runtime and model, runs it as a private local service, and gives desktop,
+Electron, Node, and browser applications the same streaming transcript API.
 
 ```ts
-import { SedaNode } from "@bearlyai/seda-node";
+import { Seda } from "@bearlyai/seda";
 
-await SedaNode.prepare({ profile: "compact", language: "en" });
-await using seda = await SedaNode.start({
-  profile: "compact",
+const seda = await Seda.connect(await window.seda.connection());
+const microphone = await seda.microphone({
   language: "en",
+  onTranscript: ({ text, final }) => {
+    transcript.textContent = text;
+    transcript.dataset.final = String(final);
+  },
 });
 
-const session = await seda.listen({ language: "en" });
-session.on("transcript", (update) => editor.preview(update));
-
-pushToTalk.on("audio", (pcm16) => session.write(pcm16));
-pushToTalk.on("release", async () => editor.commit(await session.commit()));
+// On push-to-talk release:
+const final = await microphone.stop();
 ```
 
-Seda deliberately does not own the microphone, global shortcut, or focused-app
-insertion. The embedding application owns those OS permissions and policies;
-Seda owns model installation, inference, streaming revisions, and transport.
-That boundary keeps the core portable and auditable.
+`seda.microphone()` requests browser permission, captures the selected input,
+downmixes and resamples it to 16 kHz PCM, streams live revisions, and releases
+every media track when `stop()` or `cancel()` is called. The native daemon does
+not grab devices by itself. Global shortcuts and focused-app insertion remain
+explicit responsibilities of the embedding application.
 
 ## Start here
 
-Build the `seda` binary with Rust 1.90 or download it from a GitHub release:
+### 1. Install the native helper
+
+Download the binary for your OS from the
+[latest GitHub release](https://github.com/bearlyai/seda/releases/latest), put
+`seda` on `PATH`, then prepare a model:
 
 ```sh
-cargo build --release --locked -p seda-cli
-./target/release/seda prepare --profile compact --language en
-./target/release/seda transcribe recording.wav --profile compact --language en
+seda prepare --profile compact --language en
 ```
 
-Start a private local service:
+For development, start the private service and allow only your app's exact
+browser origin:
 
 ```sh
-seda serve --profile compact --language en
+seda serve \
+  --profile compact \
+  --language en \
+  --allow-origin http://localhost:5173
 ```
 
-The first stdout line is machine-readable startup data containing the random
-loopback address and ephemeral bearer token. Logs go to stderr. A host process
-should read that line and keep the token private.
+The first stdout line is JSON containing the random loopback address and
+ephemeral bearer token. Your launcher passes that object to its trusted page;
+logs stay on stderr. Production Electron and Node apps should use
+`SedaNode.start()` instead of parsing this line themselves.
+
+### 2. Install the JavaScript client
+
+Until npm trusted publishing is configured, install the package tarball from
+the latest release:
+
+```sh
+pnpm add https://github.com/bearlyai/seda/releases/download/v0.1.1/bearlyai-seda-0.1.1.tgz
+```
+
+### 3. Listen to the microphone
+
+Call `microphone()` from a click, key press, or other user gesture:
+
+```ts
+import { Seda } from "@bearlyai/seda";
+
+const seda = await Seda.connect({
+  baseUrl: "http://127.0.0.1:43123",
+  token: ephemeralTokenFromYourLauncher,
+});
+
+let microphone;
+
+dictateButton.addEventListener("pointerdown", () => {
+  microphone = seda.microphone({
+    language: "en",
+    onTranscript: ({ stableText, unstableText }) => {
+      stable.textContent = stableText;
+      unstable.textContent = unstableText;
+    },
+  });
+});
+
+dictateButton.addEventListener("pointerup", async () => {
+  const pending = microphone;
+  microphone = undefined;
+  if (!pending) return;
+  const active = await pending;
+  editor.insertText((await active.stop()).text);
+});
+```
+
+See the complete [browser microphone guide](docs/browser.md) for connection
+handoff, Shift-to-talk, device selection, Electron, permissions, and error UX.
 
 ## Launch platforms
 
@@ -54,12 +107,15 @@ should read that line and keep the token private.
 | macOS 14+ on Apple Silicon | Supported and model-tested | Metal |
 | Windows 11 x64 | Supported and model-tested | CPU |
 | Linux x64, glibc | Supported and model-tested | CPU |
-| Browser | Client supported; local WASM runtime planned | Connects to Seda service |
+| Browser | Microphone client supported; local WASM runtime planned | Connects to Seda service |
 | macOS Intel, Linux/Windows ARM, mobile | Later | Adapter work required |
 
 Every pull request runs the Rust server, TypeScript clients, process lifecycle,
-HTTP, and WebSocket integration suites on all three launch targets. A second
-matrix downloads the pinned compact model and transcribes a checksum-verified
+HTTP, CORS, and WebSocket integration suites on all three launch targets. A
+real Chromium test grants a deterministic fake microphone and covers
+`getUserMedia` → AudioWorklet → resampling → WebSocket → live revisions → final
+transcript. A second matrix downloads the pinned compact model and transcribes
+a checksum-verified
 speech fixture through the real native runtime on Linux and Windows. Its macOS
 lane downloads, verifies, and diagnoses the pinned native artifacts; Apple
 Silicon API and streaming behavior stays in the primary fixture matrix. Exact
@@ -73,7 +129,7 @@ Seda has four intentionally small integration surfaces:
 | Surface | Best for | Entry point |
 | --- | --- | --- |
 | Managed host | Node and Electron main | `SedaNode.prepare()`, `SedaNode.start()` |
-| Universal client | Browser, renderer-safe proxy, Node | `Seda.connect()` |
+| Browser client | Web and Electron renderer | `Seda.connect()`, `seda.microphone()` |
 | CLI | Shell, installers, diagnostics | `seda prepare|serve|transcribe|doctor|models` |
 | Wire protocol | Other languages and applets | HTTP + WebSocket protocol v1 |
 
@@ -93,37 +149,34 @@ await SedaNode.prepare({
 await using seda = await SedaNode.start({
   profile: "balanced",
   language: "de-DE",
+  allowedOrigins: ["http://localhost:5173"],
 });
 
-const session = await seda.listen({ language: "de-DE" });
-session.on("transcript", ({ text, stableText, unstableText, final }) => {
-  showLiveText({ text, stableText, unstableText, final });
-});
-session.write(pcm16MonoAt16Khz);
-const result = await session.commit();
+const connection = seda.browserConnection();
 ```
 
-In Electron, run `SedaNode` in the main process. Send only application-specific
-transcript events over a narrow IPC bridge; do not expose the service token or
-raw Node APIs to a renderer.
+In Electron, run `SedaNode` in the main process and expose
+`browserConnection()` only to your trusted, context-isolated renderer through a
+narrow preload bridge. Never expose it to remote content.
 
-### Browser or custom JavaScript host
+### Browser microphone
 
 ```ts
 import { Seda } from "@bearlyai/seda";
 
-const seda = await Seda.connect({
-  baseUrl: "http://127.0.0.1:43123",
-  token,
+const seda = await Seda.connect(await window.seda.connection());
+const microphone = await seda.microphone({
+  language: "en",
+  deviceId: selectedInputId,
+  onTranscript: ({ text }) => renderLiveText(text),
 });
 
-const capabilities = await seda.capabilities();
-const transcript = await seda.transcribe(wavBlob, { language: "en" });
+const transcript = await microphone.stop();
 ```
 
-For live audio, call `seda.listen()`, feed 16 kHz mono `Int16Array` chunks with
-`session.write()`, and call `session.commit()` on push-to-talk release. Browser
-origins must be explicitly allowed when the daemon starts.
+`seda.listen()` remains the advanced transport API for hosts that already
+produce 16 kHz mono PCM. Normal browser UI should use `seda.microphone()`.
+Browser origins must be explicitly allowed when the daemon starts.
 
 ### CLI
 
@@ -197,11 +250,20 @@ seda prepare --profile compact --language en
 SEDA_REAL_MODEL=1 SEDA_REAL_AUDIO=/path/to/speech.wav pnpm test
 ```
 
+Install Chromium once and run the full browser microphone integration:
+
+```sh
+pnpm exec playwright install chromium
+pnpm test:browser
+```
+
 ## Design promises
 
 - Local by default: random loopback port, ephemeral token, no telemetry.
 - Honest capability negotiation: clients can inspect model behavior at runtime.
 - Stable protocol: runtime and model implementations stay behind protocol v1.
+- Usable browser input: permission, capture, downmixing, resampling, cleanup,
+  and CORS are part of the supported client path.
 - Safe installation: pinned artifacts, streaming hashes, safe archive paths,
   resumable partials, and no shell-spawned child processes.
 - Backpressure and limits: bounded actor channels, frame limits, session limits,

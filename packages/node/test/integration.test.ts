@@ -52,5 +52,9 @@ describe("SedaNode", () => {
 
     expect(transcript.text).toBe("hello world");
     expect((await running.capabilities()).runtime).toBe("fixture");
+    expect(running.browserConnection()).toEqual({
+      baseUrl: `http://${running.address}`,
+      token: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
   });
 });

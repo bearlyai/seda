@@ -9,6 +9,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use futures_util::{SinkExt, StreamExt};
+use http::Method;
 use seda_core::{EngineEvent, Error as CoreError, RecognitionEngine};
 use seda_protocol::{
     AudioEncoding, Capabilities, ClientMessage, ErrorBody, ErrorCode, ErrorResponse,
@@ -22,6 +23,7 @@ use std::time::{Duration, Instant};
 use subtle::ConstantTimeEq;
 use tokio::sync::mpsc;
 use tower_http::catch_panic::CatchPanicLayer;
+use tower_http::cors::CorsLayer;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::trace::TraceLayer;
 use uuid::Uuid;
@@ -75,6 +77,15 @@ impl ServerState {
 }
 
 pub fn app(state: ServerState) -> Router {
+    let allowed_origins = state
+        .allowed_origins
+        .iter()
+        .filter_map(|origin| origin.parse().ok())
+        .collect::<Vec<_>>();
+    let cors = CorsLayer::new()
+        .allow_origin(allowed_origins)
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE]);
     let protected = Router::new()
         .route("/v1/status", get(status))
         .route("/v1/capabilities", get(capabilities))
@@ -86,6 +97,7 @@ pub fn app(state: ServerState) -> Router {
         .merge(protected)
         .route("/v1/sessions/{id}/stream", get(upgrade_session))
         .layer(DefaultBodyLimit::max(100 * 1024 * 1024))
+        .layer(cors)
         .layer(PropagateRequestIdLayer::x_request_id())
         .layer(SetRequestIdLayer::new(
             header::HeaderName::from_static("x-request-id"),

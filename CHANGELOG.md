@@ -2,6 +2,17 @@
 
 Seda follows semantic versioning. Notable changes are recorded here.
 
+## 0.1.1
+
+- Added the high-level browser `seda.microphone()` API with permission,
+  AudioWorklet capture, downmixing, resampling, cleanup, and live callbacks.
+- Added authenticated, exact-origin CORS support to the local service.
+- Added `SedaNode.browserConnection()` for explicit trusted-renderer handoff.
+- Added a Chromium microphone-to-final-transcript integration test on GitHub.
+- Reworked user documentation around complete browser, Electron, CLI, and
+  lower-level PCM workflows.
+- Added installable JavaScript package tarballs to GitHub releases.
+
 ## 0.1.0
 
 - Initial `seda` CLI and authenticated local service.

@@ -45,20 +45,28 @@ export interface StartOptions extends RuntimeOptions {
   startupTimeoutMs?: number;
 }
 
+export interface BrowserConnection {
+  baseUrl: string;
+  token: string;
+}
+
 export class SedaNode {
   readonly client: Seda;
   readonly address: string;
 
   readonly #process: ChildProcessWithoutNullStreams;
+  readonly #token: string;
   #closed = false;
 
   private constructor(
     processHandle: ChildProcessWithoutNullStreams,
     address: string,
+    token: string,
     client: Seda,
   ) {
     this.#process = processHandle;
     this.address = address;
+    this.#token = token;
     this.client = client;
   }
 
@@ -133,7 +141,7 @@ export class SedaNode {
         token: ready.token,
         webSocket: (url) => new WebSocket(url) as unknown as WebSocketLike,
       });
-      return new SedaNode(child, ready.address, client);
+      return new SedaNode(child, ready.address, ready.token, client);
     } catch (error) {
       child.kill();
       throw error;
@@ -146,6 +154,17 @@ export class SedaNode {
 
   listen(options?: ListenOptions): Promise<Session> {
     return this.client.listen(options);
+  }
+
+  /**
+   * Returns the short-lived connection data a trusted browser or Electron
+   * renderer needs. Do not expose it to untrusted remote content.
+   */
+  browserConnection(): BrowserConnection {
+    return {
+      baseUrl: `http://${this.address}`,
+      token: this.#token,
+    };
   }
 
   transcribe(

@@ -6,8 +6,8 @@ Seda is a speech engine service, not a universal dictation UI.
 
 ```text
 host app
-  ├─ global shortcut and microphone permissions
-  ├─ audio capture/resampling
+  ├─ global shortcut and focused-app policy
+  ├─ browser microphone helper or application-owned audio
   ├─ text preview and focused-app insertion
   └─ Seda host
        ├─ model catalog + verified installer
@@ -15,9 +15,11 @@ host app
        └─ authenticated HTTP/WebSocket protocol
 ```
 
-This division prevents a reusable library from silently requesting invasive OS
-permissions. It also lets Electron, native applets, accessibility tools, web
-pages, and headless services build the UX appropriate to their platform.
+The native service never grabs a device. The browser client requests microphone
+permission only when the application calls `seda.microphone()` from its own
+interaction, then owns capture, resampling, and cleanup. Other hosts can supply
+PCM through the lower-level session. Electron, native applets, accessibility
+tools, web pages, and headless services still control their own UX and policy.
 
 ## Components
 
@@ -25,7 +27,7 @@ pages, and headless services build the UX appropriate to their platform.
 - `seda-core`: paths, embedded catalog, installer, and engine/session traits.
 - `seda-parakeet`: safe Rust wrapper around parakeet.cpp C ABI v5.
 - `seda-cli`: CLI, authenticated Axum service, session registry, actor workers.
-- `@bearlyai/seda`: universal typed HTTP/WebSocket client.
+- `@bearlyai/seda`: typed HTTP/WebSocket client plus browser microphone path.
 - `@bearlyai/seda-node`: sidecar installer and lifecycle manager.
 
 Rust crates are internal implementation units for v0.1 and are not published to
@@ -67,8 +69,9 @@ Control-plane authentication uses constant-time comparison. Live sockets use
 short-lived one-time tickets so credentials do not need to become WebSocket
 subprotocols or renderer-visible query parameters.
 
-Browser `Origin` is deny-by-default. Electron should keep credentials in the
-main process and expose only a narrow IPC API.
+Browser `Origin` is deny-by-default for both HTTP CORS and WebSocket upgrades.
+Electron should keep lifecycle control in the main process and expose only
+`browserConnection()` through a narrow bridge to a trusted local renderer.
 
 ## Adding an engine
 
@@ -89,7 +92,7 @@ sherpa-onnx, OS-native, remote, or WASM backend from changing application code.
 - One resident model per process.
 - One language choice per session.
 - PCM audio only for live sessions.
-- No microphone, VAD abstraction, shortcut, or text injection in core.
+- No daemon-owned microphone, global shortcut, or text injection.
 - No second-pass refiner until it has measured quality and latency behavior.
 - No WASM runtime until model caching, threading, and streaming semantics are
   consistent enough to keep the API honest.

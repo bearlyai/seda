@@ -74,7 +74,8 @@ push-to-talk experience:
 
 - model download and persistent browser storage must be resumable and versioned;
 - SIMD and threads depend on browser capabilities and cross-origin isolation;
-- microphone capture needs AudioWorklet-based resampling and permission UX;
+- the shipped microphone API can be reused, but the in-process worker must
+  accept its PCM without changing session semantics;
 - low-memory mobile browsers can evict or fail large model allocations;
 - the runtime must expose partial-revision and commit semantics consistent with
   the native API.
