@@ -93,6 +93,7 @@ test("keeps the in-process session API portable across browser engines", async (
     "Ready",
   );
   const result = await page.evaluate(async () => {
+    const capabilities = await window.__sedaBrowser.capabilities();
     const revisions: Array<{ text: string; final: boolean }> = [];
     const session = await window.__sedaBrowser.listen({ language: "en" });
     session.on("transcript", ({ text, final }) => {
@@ -100,11 +101,37 @@ test("keeps the in-process session API portable across browser engines", async (
     });
     session.write(new Int16Array(16_000).fill(1_024));
     const transcript = await session.commit();
-    return { transcript, revisions };
+    let autoLanguageError = "";
+    try {
+      await window.__sedaBrowser.listen({ language: "auto" });
+    } catch (error) {
+      autoLanguageError =
+        error instanceof Error ? error.message : String(error);
+    }
+    return {
+      transcript,
+      revisions,
+      model: capabilities.resolvedModel,
+      language: capabilities.language,
+      autoLanguageError,
+    };
   });
 
   expect(result.transcript.text).toBe("hello");
   expect(result.revisions).toEqual([{ text: "hello", final: true }]);
+  expect(result.model).toMatchObject({
+    id: "onnx-community/moonshine-tiny-ONNX",
+    revision: "a6da1241cd305dcd64eab1edbd615f2bb9aabb95",
+    variant: "q8",
+    runtime: "transformers.js/wasm",
+  });
+  expect(result.language).toEqual({
+    mode: "fixed",
+    supported: ["en"],
+    supportsAuto: false,
+    fixed: "en",
+  });
+  expect(result.autoLanguageError).toContain("model supports en");
   expect(browserErrors).toEqual([]);
 });
 

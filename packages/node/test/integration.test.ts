@@ -31,6 +31,19 @@ afterEach(async () => {
 });
 
 describe("SedaNode", () => {
+  it("rejects ambiguous model selectors before launching a sidecar", async () => {
+    await expect(
+      SedaNode.start({
+        binaryPath: binary,
+        modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+        profile: "balanced",
+      }),
+    ).rejects.toThrow("pass modelId, not both modelId and profile");
+    await expect(
+      SedaNode.start({ binaryPath: binary, variant: "q4_k" }),
+    ).rejects.toThrow("variant requires modelId");
+  });
+
   it("fails cleanly when the configured sidecar cannot be launched", async () => {
     await expect(
       SedaNode.start({

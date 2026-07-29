@@ -5,11 +5,17 @@ pub enum Error {
     #[error("Seda does not have a runtime build for {os}/{arch}")]
     UnsupportedPlatform { os: String, arch: String },
 
-    #[error("no model matches profile `{profile}` and language `{language}`")]
-    ModelUnavailable { profile: String, language: String },
+    #[error("no realtime model matches `{selector}`")]
+    ModelUnavailable { selector: String },
 
     #[error("model `{0}` is not installed")]
     ModelNotReady(String),
+
+    #[error("language `{requested}` is not supported; choose one of {supported}")]
+    UnsupportedLanguage {
+        requested: String,
+        supported: String,
+    },
 
     #[error("invalid embedded catalog: {0}")]
     InvalidCatalog(#[from] serde_json::Error),

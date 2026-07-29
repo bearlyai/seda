@@ -7,8 +7,10 @@ Seda follows semantic versioning. Notable changes are recorded here.
 - Added `@bearlyai/seda-browser`, a serverless in-browser runtime backed by a
   dedicated Worker, automatic WebGPU/WASM selection, and pinned Moonshine Tiny
   model caching.
-- Kept the high-level API to `SedaBrowser.create()`, `microphone()`, live
-  revisions, `stop()`, `cancel()`, and `close()`—no port, token, or audio blobs.
+- Made `SedaBrowser.prepare({ modelId })` the high-level readiness boundary,
+  followed by `microphone()`, live revisions, `stop()`, `cancel()`, and
+  `close()`—no port, token, or audio blobs. `create()` remains a deprecated
+  compatibility alias.
 - Extracted a runtime-neutral `TranscriptionSession` contract so native and
   browser inference share capture and application code.
 - Added model download/compile readiness progress, abortable initialization,
@@ -18,6 +20,13 @@ Seda follows semantic versioning. Notable changes are recorded here.
   test using a checksum-verified speech fixture.
 - Reworked all browser documentation around complete microphone and
   Shift-to-talk flows, deployment requirements, model behavior, and error UX.
+- Replaced model tiers as the primary interface with exact model ID, immutable
+  revision, variant, and runtime identity. Profiles remain convenience aliases.
+- Moved language selection from preparation and startup to each transcription
+  or live stream, with fixed, prompted, automatic, and checkpoint capability
+  semantics.
+- Added typed Python, Go, and Swift protocol clients with real Rust-sidecar
+  HTTP/WebSocket integration coverage in GitHub Actions.
 
 ## 0.1.1
 

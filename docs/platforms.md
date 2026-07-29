@@ -7,7 +7,7 @@
 - Release target: `aarch64-apple-darwin`
 - Minimum operating system: macOS 14
 - Inference: parakeet.cpp Metal build
-- Integration: binary, CLI, Node 22, Electron main
+- Integration: binary, CLI, Node 22, Electron main, Swift protocol client
 - CI: `macos-14` arm64 for the full build and streaming fixture suite.
   A second `macos-15-intel` lane verifies download, checksum, extraction, and
   discovery of the pinned CPU runtime and model. The exact arm64/Metal
@@ -23,7 +23,7 @@ permissions when it inserts into other applications.
 - Release target: `x86_64-pc-windows-msvc`
 - Minimum operating system: Windows 11
 - Inference: parakeet.cpp CPU build
-- Integration: `.exe`, CLI, Node 22, Electron main
+- Integration: `.exe`, CLI, Node 22, Electron main, Python and Go clients
 - CI: `windows-2025` x64 GitHub-hosted runner, fixture and real model
 
 Browser/Electron microphone capture is supported. The host owns any global
@@ -34,7 +34,7 @@ keyboard hook or UI Automation access.
 - Release target: `x86_64-unknown-linux-gnu`
 - Baseline: contemporary glibc distribution
 - Inference: parakeet.cpp CPU build
-- Integration: binary, CLI, Node 22, Electron main
+- Integration: binary, CLI, Node 22, Electron main, Python and Go clients
 - CI: `ubuntu-24.04` x64 GitHub-hosted runner, fixture and real model
 
 Desktop key capture and insertion vary across X11, Wayland, portals, and
@@ -63,14 +63,32 @@ eviction and sustained inference need device testing.
 
 `@bearlyai/seda` remains available for a browser or Electron renderer connected
 to a native host. That route provides true-streaming and multilingual Parakeet
-profiles but requires an app launcher to hand the trusted page a private
+models but requires an app launcher to hand the trusted page a private
 loopback address and token.
+
+## Native SDKs
+
+The initial Python, Go, and Swift packages are typed clients for Seda protocol
+v1. They connect to a sidecar that the application launches or receives from
+its installer:
+
+| SDK | Initial target | CI |
+| --- | --- | --- |
+| Python | Python 3.11+ desktop, automation, and services | Unit + real fixture HTTP/WebSocket on Ubuntu |
+| Go | Go 1.23+ desktop tools and services | Unit + real fixture HTTP/WebSocket on Ubuntu |
+| Swift | macOS 14+ and iOS 17+ application code | Unit + real fixture HTTP/WebSocket on macOS |
+
+These packages do not yet bundle platform-specific binaries or own microphone
+capture. Their intentionally small contract is `connect` → `listen(language:)`
+→ `write` → `commit`; the host owns lifecycle, input devices, shortcuts, and
+text insertion.
 
 ## Later
 
 - macOS Intel release and CI
 - Linux arm64 and Windows arm64
-- iOS and Android bindings
+- Swift-side package distribution and microphone convenience for iOS
+- Android/Kotlin bindings
 - additional browser language/model tiers
 - optional native Moonshine and sherpa-onnx adapters
 - measured GPU backends on Windows/Linux

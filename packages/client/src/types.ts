@@ -1,5 +1,24 @@
 export type Profile = "compact" | "balanced" | "quality";
 export type StreamingKind = "true" | "buffered" | "none";
+export type LanguageMode =
+  | "fixed"
+  | "prompted"
+  | "automatic"
+  | "checkpoint";
+
+export interface ModelIdentity {
+  id: string;
+  revision: string;
+  variant: string;
+  runtime: string;
+}
+
+export interface LanguageCapabilities {
+  mode: LanguageMode;
+  supported: string[];
+  supportsAuto: boolean;
+  fixed?: string;
+}
 
 export interface Status {
   name: string;
@@ -10,7 +29,11 @@ export interface Status {
 
 export interface Capabilities {
   runtime: string;
+  /** @deprecated Use `resolvedModel.id`. */
   model: string;
+  resolvedModel: ModelIdentity;
+  language: LanguageCapabilities;
+  /** @deprecated Use `language.supported`. */
   languages: string[];
   streaming: StreamingKind;
   punctuation: boolean;

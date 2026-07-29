@@ -7,3 +7,9 @@ node_modules/
 .DS_Store
 /playwright-report/
 /test-results/
+/sdks/swift/.build/
+/.build/
+__pycache__/
+*.py[cod]
+/sdks/python/build/
+*.egg-info/

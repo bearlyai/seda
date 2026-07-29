@@ -2,9 +2,10 @@ import {
   MicrophoneSession,
   SedaError,
   type Capabilities,
+  type ModelIdentity,
   type Status,
 } from "@bearlyai/seda";
-import { BROWSER_MODELS, DEFAULT_MODEL } from "./models.js";
+import { BROWSER_MODELS, DEFAULT_MODEL_ID } from "./models.js";
 import { BrowserSession } from "./session.js";
 import type {
   BrowserListenOptions,
@@ -19,20 +20,28 @@ const PROTOCOL = 1;
 
 export class SedaBrowser {
   readonly #host: InferenceWorker;
-  readonly #modelName: keyof typeof BROWSER_MODELS;
+  readonly #modelId: keyof typeof BROWSER_MODELS;
   readonly #device: ResolvedBrowserDevice;
   readonly #sessions = new Set<BrowserSession>();
   readonly #microphones = new Set<MicrophoneSession>();
   #closed = false;
+  readonly model: ModelIdentity;
 
   private constructor(
     host: InferenceWorker,
-    modelName: keyof typeof BROWSER_MODELS,
+    modelId: keyof typeof BROWSER_MODELS,
     device: ResolvedBrowserDevice,
   ) {
     this.#host = host;
-    this.#modelName = modelName;
+    this.#modelId = modelId;
     this.#device = device;
+    const model = BROWSER_MODELS[modelId];
+    this.model = {
+      id: model.id,
+      revision: model.revision,
+      variant: model.variants[device],
+      runtime: `transformers.js/${device}`,
+    };
   }
 
   /**
@@ -40,18 +49,28 @@ export class SedaBrowser {
    *
    * The returned runtime is ready for immediate push-to-talk use.
    */
-  static async create(
+  static async prepare(
     options: SedaBrowserOptions = {},
   ): Promise<SedaBrowser> {
-    const modelName = options.model ?? DEFAULT_MODEL;
-    if (!(modelName in BROWSER_MODELS)) {
-      throw invalidOption(`unknown browser model: ${modelName}`);
+    if (options.modelId && options.model) {
+      throw invalidOption("pass modelId, not both modelId and deprecated model");
+    }
+    if (options.model && options.model !== "moonshine-tiny") {
+      throw invalidOption(`unknown browser model alias: ${options.model}`);
+    }
+    const modelId =
+      options.modelId ??
+      (options.model === "moonshine-tiny"
+        ? "onnx-community/moonshine-tiny-ONNX"
+        : DEFAULT_MODEL_ID);
+    if (!(modelId in BROWSER_MODELS)) {
+      throw invalidOption(`unknown browser model ID: ${modelId}`);
     }
     const requestedDevice = options.device ?? "auto";
     if (!["auto", "webgpu", "wasm"].includes(requestedDevice)) {
       throw invalidOption(`unknown browser device: ${requestedDevice}`);
     }
-    const model = BROWSER_MODELS[modelName];
+    const model = BROWSER_MODELS[modelId];
     const loaded = await InferenceWorker.create(
       model,
       requestedDevice,
@@ -60,7 +79,12 @@ export class SedaBrowser {
         ...(options.onProgress ? { onProgress: options.onProgress } : {}),
       },
     );
-    return new SedaBrowser(loaded.host, modelName, loaded.device);
+    return new SedaBrowser(loaded.host, modelId, loaded.device);
+  }
+
+  /** @deprecated Use `SedaBrowser.prepare()`. */
+  static create(options: SedaBrowserOptions = {}): Promise<SedaBrowser> {
+    return SedaBrowser.prepare(options);
   }
 
   async status(): Promise<Status> {
@@ -74,10 +98,19 @@ export class SedaBrowser {
 
   async capabilities(): Promise<Capabilities> {
     this.#assertOpen();
-    const model = BROWSER_MODELS[this.#modelName];
+    const model = BROWSER_MODELS[this.#modelId];
     return {
       runtime: `transformers.js/${this.#device}`,
-      model: model.name,
+      model: model.id,
+      resolvedModel: this.model,
+      language: {
+        mode: model.languageMode,
+        supported: [...model.languages],
+        supportsAuto: model.supportsAuto,
+        ...(model.languageMode === "fixed"
+          ? { fixed: model.languages[0] }
+          : {}),
+      },
       languages: [...model.languages],
       streaming: "buffered",
       punctuation: true,
@@ -91,7 +124,11 @@ export class SedaBrowser {
     options: BrowserListenOptions = {},
   ): Promise<BrowserSession> {
     this.#assertOpen();
-    validateLanguage(options.language, BROWSER_MODELS[this.#modelName].languages);
+    validateLanguage(
+      options.language,
+      BROWSER_MODELS[this.#modelId].languages,
+      BROWSER_MODELS[this.#modelId].supportsAuto,
+    );
     const id = globalThis.crypto.randomUUID();
     let session: BrowserSession;
     session = new BrowserSession(id, this.#host, options, () => {
@@ -180,13 +217,16 @@ function invalidOption(message: string): SedaError {
 function validateLanguage(
   language: string | undefined,
   supported: readonly string[],
+  supportsAuto: boolean,
 ): void {
   if (
     language === undefined ||
-    language === "auto" ||
+    (language === "auto" && supportsAuto) ||
     supported.includes(language.toLowerCase().split("-")[0] ?? language)
   ) {
     return;
   }
-  throw invalidOption(`moonshine-tiny supports English; received ${language}`);
+  throw invalidOption(
+    `model supports ${supported.join(", ")}; received ${language}`,
+  );
 }

@@ -13,7 +13,8 @@ use http::Method;
 use seda_core::{EngineEvent, Error as CoreError, RecognitionEngine};
 use seda_protocol::{
     AudioEncoding, Capabilities, ClientMessage, ErrorBody, ErrorCode, ErrorResponse,
-    PROTOCOL_VERSION, ServerEvent, SessionCreated, SessionRequest, Status, Transcript,
+    LanguageCapabilities, LanguageMode, PROTOCOL_VERSION, ServerEvent, SessionCreated,
+    SessionRequest, Status, Transcript,
 };
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -146,6 +147,15 @@ async fn capabilities(State(state): State<ServerState>) -> Json<Capabilities> {
     Json(Capabilities {
         runtime: metadata.runtime.clone(),
         model: metadata.model.clone(),
+        resolved_model: metadata.resolved_model.clone(),
+        language: LanguageCapabilities {
+            mode: metadata.language_mode.clone(),
+            supported: metadata.languages.clone(),
+            supports_auto: metadata.supports_auto_language,
+            fixed: (metadata.language_mode == LanguageMode::Fixed)
+                .then(|| metadata.languages.first().cloned())
+                .flatten(),
+        },
         languages: metadata.languages.clone(),
         streaming: metadata.streaming.clone(),
         punctuation: metadata.punctuation,
@@ -157,12 +167,7 @@ async fn capabilities(State(state): State<ServerState>) -> Json<Capabilities> {
 
 #[derive(Debug, Deserialize)]
 struct TranscriptionQuery {
-    #[serde(default = "default_language")]
-    language: String,
-}
-
-fn default_language() -> String {
-    "auto".to_owned()
+    language: Option<String>,
 }
 
 async fn transcribe(
@@ -170,11 +175,15 @@ async fn transcribe(
     Query(query): Query<TranscriptionQuery>,
     body: Bytes,
 ) -> Result<Json<Transcript>, ApiError> {
-    validate_language(&state.engine.metadata().languages, &query.language)?;
+    let language = state
+        .engine
+        .metadata()
+        .resolve_language(query.language.as_deref())
+        .map_err(ApiError::from)?;
     let (pcm, sample_rate) = decode_wav(&body)?;
     let engine = Arc::clone(&state.engine);
     let transcript =
-        tokio::task::spawn_blocking(move || engine.transcribe(&pcm, sample_rate, &query.language))
+        tokio::task::spawn_blocking(move || engine.transcribe(&pcm, sample_rate, &language))
             .await
             .map_err(|error| ApiError::internal(format!("transcription worker failed: {error}")))?
             .map_err(ApiError::from)?;
@@ -183,10 +192,14 @@ async fn transcribe(
 
 async fn create_session(
     State(state): State<ServerState>,
-    Json(request): Json<SessionRequest>,
+    Json(mut request): Json<SessionRequest>,
 ) -> Result<(StatusCode, Json<SessionCreated>), ApiError> {
     validate_session_request(&request)?;
-    validate_language(&state.engine.metadata().languages, &request.language)?;
+    request.language = state
+        .engine
+        .metadata()
+        .resolve_language((!request.language.is_empty()).then_some(request.language.as_str()))
+        .map_err(ApiError::from)?;
     let id = Uuid::new_v4().to_string();
     let ticket = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
     let mut pending = state
@@ -305,36 +318,6 @@ fn validate_session_request(request: &SessionRequest) -> Result<(), ApiError> {
             StatusCode::UNPROCESSABLE_ENTITY,
             ErrorCode::InvalidAudio,
             "live sessions require 16 kHz mono pcm_s16le audio",
-            true,
-        ));
-    }
-    Ok(())
-}
-
-fn validate_language(supported: &[String], requested: &str) -> Result<(), ApiError> {
-    if requested.is_empty() || requested.len() > 32 {
-        return Err(ApiError::new(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            ErrorCode::InvalidRequest,
-            "language must contain 1 to 32 characters",
-            true,
-        ));
-    }
-    let matches = requested == "auto"
-        || supported.iter().any(|language| {
-            language == requested
-                || requested
-                    .split_once('-')
-                    .is_some_and(|(base, _)| language == base)
-                || language
-                    .split_once('-')
-                    .is_some_and(|(base, _)| base == requested)
-        });
-    if !matches {
-        return Err(ApiError::new(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            ErrorCode::InvalidRequest,
-            format!("language `{requested}` is not supported by the active model"),
             true,
         ));
     }
@@ -725,6 +708,11 @@ impl From<CoreError> for ApiError {
                 true,
             ),
             CoreError::ModelNotReady(_) => (StatusCode::CONFLICT, ErrorCode::ModelNotReady, true),
+            CoreError::UnsupportedLanguage { .. } => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                ErrorCode::InvalidRequest,
+                true,
+            ),
             CoreError::UnsupportedPlatform { .. } => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 ErrorCode::UnsupportedHardware,
@@ -762,6 +750,14 @@ pub mod test_engine {
                 metadata: EngineMetadata {
                     runtime: "fixture".to_owned(),
                     model: "fixture-streaming-en".to_owned(),
+                    resolved_model: seda_protocol::ModelIdentity {
+                        id: "fixture/streaming-en".to_owned(),
+                        revision: "test".to_owned(),
+                        variant: "fixture".to_owned(),
+                        runtime: "fixture".to_owned(),
+                    },
+                    language_mode: seda_protocol::LanguageMode::Fixed,
+                    supports_auto_language: false,
                     languages: vec!["en".to_owned()],
                     streaming: StreamingKind::True,
                     punctuation: true,

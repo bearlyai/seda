@@ -39,8 +39,8 @@ describe("Seda with the pinned native runtime and compact model", () => {
     async () => {
       running = await SedaNode.start({
         binaryPath: binary,
-        profile: "compact",
-        language: "en",
+        modelId: "nvidia/parakeet_realtime_eou_120m-v1",
+        variant: "q4_k",
         ...(process.env["SEDA_HOME"]
           ? { dataDirectory: process.env["SEDA_HOME"] }
           : {}),
@@ -75,8 +75,8 @@ describe("Seda with the pinned native runtime and compact model", () => {
     async () => {
       running = await SedaNode.start({
         binaryPath: binary,
-        profile: "compact",
-        language: "en",
+        modelId: "nvidia/parakeet_realtime_eou_120m-v1",
+        variant: "q4_k",
         ...(process.env["SEDA_HOME"]
           ? { dataDirectory: process.env["SEDA_HOME"] }
           : {}),

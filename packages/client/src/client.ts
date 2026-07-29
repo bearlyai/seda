@@ -61,11 +61,14 @@ export class Seda {
     wav: Blob | ArrayBuffer | ArrayBufferView,
     options: { language?: string } = {},
   ): Promise<Transcript> {
-    const query = new URLSearchParams({
-      language: options.language ?? "auto",
-    });
+    const query = new URLSearchParams(
+      options.language === undefined ? {} : { language: options.language },
+    );
     const body = wav instanceof Blob ? wav : ownedBytes(wav);
-    return this.#request<Transcript>(`/v1/transcriptions?${query}`, {
+    const path = query.size
+      ? `/v1/transcriptions?${query}`
+      : "/v1/transcriptions";
+    return this.#request<Transcript>(path, {
       method: "POST",
       headers: { "content-type": "audio/wav" },
       body,
@@ -77,7 +80,9 @@ export class Seda {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        language: options.language ?? "auto",
+        ...(options.language === undefined
+          ? {}
+          : { language: options.language }),
         input: {
           encoding: "pcm_s16le",
           sampleRate: 16_000,

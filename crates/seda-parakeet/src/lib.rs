@@ -95,6 +95,9 @@ impl ParakeetEngine {
             metadata: EngineMetadata {
                 runtime: "parakeet.cpp".to_owned(),
                 model: model_spec.id.clone(),
+                resolved_model: model_spec.identity(),
+                language_mode: model_spec.language_mode.clone(),
+                supports_auto_language: model_spec.supports_auto,
                 languages: model_spec.languages.clone(),
                 streaming: model_spec.streaming.clone(),
                 punctuation: model_spec.punctuation,

@@ -112,16 +112,20 @@ jobs:
           cargo build --locked -p seda-cli --features test-engine
 
       - name: Prepare pinned runtime and compact model
-        run: ./target/debug/seda prepare --profile compact --language en --jsonl
+        run: >-
+          ./target/debug/seda prepare
+          --model-id nvidia/parakeet_realtime_eou_120m-v1
+          --variant q4_k
+          --jsonl
         shell: bash
 
       - name: Verify prepared runtime and model
         shell: bash
         run: |
           ./target/debug/seda doctor \
-            --profile compact \
-            --language en > "$RUNNER_TEMP/seda-doctor.json"
-          node -e "const f=require('node:fs');const d=JSON.parse(f.readFileSync(process.argv[1],'utf8'));if(!d.ready||d.model!=='parakeet-realtime-eou-120m-q4'||!d.modelPath||!d.runtimePath){console.error(d);process.exit(1)}" \
+            --model-id nvidia/parakeet_realtime_eou_120m-v1 \
+            --variant q4_k > "$RUNNER_TEMP/seda-doctor.json"
+          node -e "const f=require('node:fs');const d=JSON.parse(f.readFileSync(process.argv[1],'utf8'));if(!d.ready||d.resolvedModel?.id!=='nvidia/parakeet_realtime_eou_120m-v1'||d.resolvedModel?.variant!=='q4_k'||!d.modelPath||!d.runtimePath){console.error(d);process.exit(1)}" \
             "$RUNNER_TEMP/seda-doctor.json"
 
       - name: Download and verify speech fixture

@@ -61,7 +61,7 @@ describe("Seda client", () => {
   });
 
   it("streams revisable updates and resolves commit with the final transcript", async () => {
-    const session = await client.listen({ language: "en" });
+    const session = await client.listen();
     const updates: TranscriptUpdate[] = [];
     session.on("transcript", (update) => updates.push(update));
 

@@ -1,7 +1,6 @@
 use crate::{Catalog, Error, Paths, PreparedModel, Result, RuntimeArchive, RuntimeSpec};
 use futures_util::StreamExt;
 use reqwest::header::RANGE;
-use seda_protocol::Profile;
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -58,7 +57,7 @@ impl Installer {
         &self.paths
     }
 
-    /// Installs and verifies the runtime and realtime model for one profile.
+    /// Installs and verifies one concrete runtime and realtime model.
     ///
     /// # Errors
     ///
@@ -66,8 +65,8 @@ impl Installer {
     /// mismatches, unsafe archives, or filesystem failures.
     pub async fn prepare<F>(
         &self,
-        profile: Profile,
-        language: &str,
+        model_id: &str,
+        variant: Option<&str>,
         report: F,
     ) -> Result<PreparedModel>
     where
@@ -79,7 +78,7 @@ impl Installer {
 
         let model = self
             .catalog
-            .resolve_model(profile, language, crate::ModelPurpose::Realtime)?
+            .resolve_model_id(model_id, variant, crate::ModelPurpose::Realtime)?
             .clone();
         let (runtime, archive) = self.catalog.resolve_runtime(&model.runtime)?;
         let runtime = runtime.clone();

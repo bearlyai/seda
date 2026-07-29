@@ -12,7 +12,8 @@ install Parakeet for true streaming and multilingual models.
 ```ts
 import { SedaBrowser } from "@bearlyai/seda-browser";
 
-const seda = await SedaBrowser.create({
+const seda = await SedaBrowser.prepare({
+  modelId: "onnx-community/moonshine-tiny-ONNX",
   onProgress: ({ stage, percent }) => {
     showModelInstall(stage, percent);
   },
@@ -29,7 +30,7 @@ const final = await microphone.stop();
 editor.insertText(final.text);
 ```
 
-There is no server in that example. `SedaBrowser.create()` downloads and caches
+There is no server in that example. `SedaBrowser.prepare()` downloads and caches
 the pinned compact model, starts inference in a Worker, prefers WebGPU, falls
 back to WASM, and resolves when it is ready. `microphone()` handles permission,
 AudioWorklet capture, resampling, live revisions, finalization, and cleanup.
@@ -52,8 +53,8 @@ Initialize the model once during application readiness:
 ```ts
 import { SedaBrowser } from "@bearlyai/seda-browser";
 
-const seda = await SedaBrowser.create({
-  model: "moonshine-tiny",
+const seda = await SedaBrowser.prepare({
+  modelId: "onnx-community/moonshine-tiny-ONNX",
   device: "auto",
   onProgress: updateInstallUI,
 });
@@ -89,10 +90,12 @@ progress, model behavior, error UX, devices, CSP, and teardown.
 
 Download the binary for your OS from the
 [latest GitHub release](https://github.com/bearlyai/seda/releases/latest), put
-`seda` on `PATH`, and prepare a profile:
+`seda` on `PATH`, and prepare an exact model ID:
 
 ```sh
-seda prepare --profile compact --language en
+seda prepare \
+  --model-id nvidia/parakeet_realtime_eou_120m-v1 \
+  --variant q4_k
 ```
 
 Electron and Node applications should use `SedaNode.prepare()` and
@@ -121,14 +124,17 @@ on GitHub's macOS hosts.
 
 ## APIs
 
-Seda has five intentionally small integration surfaces:
+Seda has eight intentionally small integration surfaces:
 
 | Surface | Best for | Entry point |
 | --- | --- | --- |
-| In-browser runtime | Websites and install-free renderers | `SedaBrowser.create()`, `seda.microphone()` |
+| In-browser runtime | Websites and install-free renderers | `SedaBrowser.prepare()`, `seda.microphone()` |
 | Managed host | Node and Electron main | `SedaNode.prepare()`, `SedaNode.start()` |
 | Native-hosted client | Electron and trusted local pages | `Seda.connect()`, `seda.microphone()` |
 | CLI | Shell, installers, diagnostics | `seda prepare|serve|transcribe|doctor|models` |
+| Python SDK | Python applications and automation | `Seda.connect()`, `seda.listen()` |
+| Go SDK | Go desktop tools and services | `seda.Connect()`, `client.Listen()` |
+| Swift SDK | macOS and iOS applications | `Seda.connect()`, `seda.listen()` |
 | Wire protocol | Other languages and applets | HTTP + WebSocket protocol v1 |
 
 ### In-browser
@@ -136,7 +142,9 @@ Seda has five intentionally small integration surfaces:
 ```ts
 import { SedaBrowser } from "@bearlyai/seda-browser";
 
-const seda = await SedaBrowser.create();
+const seda = await SedaBrowser.prepare({
+  modelId: "onnx-community/moonshine-tiny-ONNX",
+});
 const microphone = await seda.microphone({
   language: "en",
   onTranscript: ({ text }) => renderLiveText(text),
@@ -154,16 +162,16 @@ revisions. It is English-only and limits one utterance to 30 seconds.
 import { SedaNode } from "@bearlyai/seda-node";
 
 await SedaNode.prepare({
-  profile: "balanced",
-  language: "de-DE",
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
   onProgress: ({ type, completedBytes, totalBytes }) => {
     updateInstaller(type, completedBytes, totalBytes);
   },
 });
 
 await using seda = await SedaNode.start({
-  profile: "balanced",
-  language: "de-DE",
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
   allowedOrigins: ["http://localhost:5173"],
 });
 
@@ -193,19 +201,56 @@ const transcript = await microphone.stop();
 produce 16 kHz mono PCM. Normal browser UI should use `seda.microphone()`.
 Browser origins must be explicitly allowed when the daemon starts.
 
+### Python, Go, and Swift
+
+All three SDKs connect to the same authenticated local protocol. The model is
+already resident; language belongs to the individual stream:
+
+```python
+from seda import Seda
+
+seda = Seda.connect("http://127.0.0.1:7331", token)
+session = seda.listen(language="de-DE")
+session.write(pcm_s16le)
+final = session.commit(on_transcript=lambda update: print(update.text))
+```
+
+```go
+client, _ := seda.Connect(ctx, seda.Options{BaseURL: address, Token: token})
+session, _ := client.Listen(ctx, seda.ListenOptions{Language: "de-DE"})
+session.Write(pcmS16LE)
+final, _ := session.Commit(ctx, func(update seda.TranscriptUpdate) {
+    fmt.Print("\r", update.Text)
+})
+```
+
+```swift
+let seda = try await Seda.connect(baseURL: address, token: token)
+let session = try await seda.listen(language: "de-DE")
+try await session.write(pcmS16LE)
+let final = try await session.commit { update in
+    print(update.text)
+}
+```
+
+See [Python](sdks/python/README.md), [Go](sdks/go/README.md), and
+[Swift](sdks/swift/README.md) for package-level usage.
+
 ### CLI
 
 ```text
-seda prepare    Download, resume, verify, and install one profile
+seda prepare    Download, resume, verify, and install one model ID/variant
 seda models     Print the exact embedded model catalog
 seda doctor     Report platform and installation readiness as JSON
 seda transcribe Transcribe a mono PCM WAV file
 seda serve      Start the authenticated HTTP/WebSocket service
 ```
 
-Profiles are host-level choices. A running process loads one model once;
-sessions choose only language and audio format. Seda does not expose switches
-that the active runtime cannot honor.
+Concrete model IDs are the reproducible host-level choice. Profiles remain
+optional aliases for `compact`, `balanced`, and `quality`. A running process
+loads one model once; every session independently supplies a language or
+`auto`. Changing languages on a prompted multilingual model does not reload
+its weights.
 
 ### HTTP and WebSocket
 
@@ -231,12 +276,12 @@ explicit `final` flag. See [the complete API contract](docs/api.md).
 
 ## Models
 
-| Profile | Model | Download | Languages | Why |
+| Model ID | Variant | Download | Languages | Why |
 | --- | --- | ---: | --- | --- |
-| `browser` | Moonshine Tiny Q8 | ~55 MB | English | Install-free, buffered revisions, WebGPU/WASM |
-| `compact` | Parakeet Realtime EOU 120M Q4 | 129 MB | English | Small, true streaming, EOU-aware |
-| `balanced` | Nemotron 3.5 Streaming 0.6B Q4 | 718 MB | 32 ready locales | Multilingual, punctuation, efficient |
-| `quality` | Nemotron 3.5 Streaming 0.6B Q8 | 984 MB | 32 ready locales | More weight precision |
+| `onnx-community/moonshine-tiny-ONNX` | `q4` WebGPU / `q8` WASM | ~55 MB | English | Install-free, buffered revisions |
+| `nvidia/parakeet_realtime_eou_120m-v1` | `q4_k` | 129 MB | English | Small, true streaming, EOU-aware |
+| `nvidia/nemotron-3.5-asr-streaming-0.6b` | `q4_k` | 718 MB | 32 ready locales | Multilingual, punctuation, efficient |
+| `nvidia/nemotron-3.5-asr-streaming-0.6b` | `q8_0` | 984 MB | 32 ready locales | More weight precision |
 
 The native catalog pins runtime version, model URL, byte size, SHA-256, license,
 and capabilities. Native downloads resume and are promoted only after
@@ -249,7 +294,8 @@ browser and native capability tiers.
 
 ## Build and test
 
-Requirements: Rust 1.90, Node 22, and pnpm 11.10.
+Requirements for the core: Rust 1.90, Node 22, and pnpm 11.10. SDK
+contributors additionally need Python 3.11+, Go 1.23+, and Swift 6.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -263,7 +309,7 @@ pnpm build
 The opt-in real-model test uses the exact same path as CI:
 
 ```sh
-seda prepare --profile compact --language en
+seda prepare --model-id nvidia/parakeet_realtime_eou_120m-v1 --variant q4_k
 SEDA_REAL_MODEL=1 SEDA_REAL_AUDIO=/path/to/speech.wav pnpm test
 ```
 
@@ -279,6 +325,8 @@ pnpm test:browser
 - Local by default: in-browser inference has no server; native hosting uses a
   random loopback port and ephemeral token; neither path has telemetry.
 - Honest capability negotiation: clients can inspect model behavior at runtime.
+- Exact model identity: capabilities expose model ID, immutable revision,
+  quantized variant, runtime, and fixed/prompted/automatic language behavior.
 - Stable protocol: runtime and model implementations stay behind protocol v1.
 - Usable browser input: permission, capture, downmixing, resampling, cleanup,
   and CORS are part of the supported client path.

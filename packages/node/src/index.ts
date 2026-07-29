@@ -15,8 +15,12 @@ export type { ListenOptions, Profile, TranscriptUpdate } from "@bearlyai/seda";
 
 export interface RuntimeOptions {
   binaryPath?: string;
+  modelId?: string;
+  variant?: string;
+  /**
+   * Convenience alias. Prefer `modelId` for reproducible deployments.
+   */
   profile?: "compact" | "balanced" | "quality";
-  language?: string;
   dataDirectory?: string;
 }
 
@@ -31,7 +35,12 @@ export interface PrepareProgress {
   id?: string;
   completedBytes?: number;
   totalBytes?: number;
-  model?: string;
+  resolvedModel?: {
+    id: string;
+    revision: string;
+    variant: string;
+    runtime: string;
+  };
   path?: string;
 }
 
@@ -73,10 +82,7 @@ export class SedaNode {
   static async prepare(options: PrepareOptions = {}): Promise<void> {
     const arguments_ = [
       "prepare",
-      "--profile",
-      options.profile ?? "balanced",
-      "--language",
-      options.language ?? "auto",
+      ...modelArguments(options),
       "--jsonl",
     ];
     const child = spawnBinary(options, arguments_);
@@ -111,10 +117,7 @@ export class SedaNode {
   static async start(options: StartOptions = {}): Promise<SedaNode> {
     const arguments_ = [
       "serve",
-      "--profile",
-      options.profile ?? "balanced",
-      "--language",
-      options.language ?? "auto",
+      ...modelArguments(options),
       "--listen",
       "127.0.0.1:0",
       "--engine",
@@ -199,6 +202,23 @@ export class SedaNode {
   async [Symbol.asyncDispose](): Promise<void> {
     await this.close();
   }
+}
+
+function modelArguments(options: RuntimeOptions): string[] {
+  if (options.modelId && options.profile) {
+    throw new TypeError("pass modelId, not both modelId and profile");
+  }
+  if (options.modelId) {
+    return [
+      "--model-id",
+      options.modelId,
+      ...(options.variant ? ["--variant", options.variant] : []),
+    ];
+  }
+  if (options.variant) {
+    throw new TypeError("variant requires modelId");
+  }
+  return ["--profile", options.profile ?? "balanced"];
 }
 
 function spawnBinary(

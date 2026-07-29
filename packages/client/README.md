@@ -15,10 +15,12 @@ pnpm add https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda
 Start the native companion with your exact page origin:
 
 ```sh
-seda prepare --profile compact --language en
+seda prepare \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k
 seda serve \
-  --profile compact \
-  --language en \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k \
   --allow-origin http://localhost:5173
 ```
 
@@ -36,7 +38,7 @@ const seda = await Seda.connect({
 });
 
 const microphone = await seda.microphone({
-  language: "en",
+  language: "de-DE",
   onTranscript: ({ stableText, unstableText }) => {
     stable.textContent = stableText;
     unstable.textContent = unstableText;
@@ -74,6 +76,11 @@ complete push-to-talk, Shift-key, Electron, and connection-handoff examples.
 For a website that must work without a local companion, use
 `@bearlyai/seda-browser`. It exposes the same `microphone()` behavior with a
 Worker-hosted WebGPU/WASM model and needs no address or token.
+
+The prepared model is process-scoped; `language` is recording-scoped. A
+prompted multilingual model can serve `de-DE`, `ja-JP`, and `auto` in
+consecutive calls without being prepared again. Inspect
+`(await seda.capabilities()).language` before building a language picker.
 
 ## Advanced: provide your own PCM
 

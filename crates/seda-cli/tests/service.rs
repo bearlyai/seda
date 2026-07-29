@@ -47,6 +47,29 @@ async fn protects_every_control_plane_endpoint() {
 }
 
 #[tokio::test]
+async fn reports_exact_model_and_language_capabilities() {
+    let address = spawn_server().await;
+    let response = reqwest::Client::new()
+        .get(format!("http://{address}/v1/capabilities"))
+        .bearer_auth(TOKEN)
+        .send()
+        .await
+        .expect("capabilities request succeeds");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let capabilities: seda_protocol::Capabilities =
+        response.json().await.expect("capabilities are valid JSON");
+    assert_eq!(capabilities.resolved_model.id, "fixture/streaming-en");
+    assert_eq!(capabilities.resolved_model.variant, "fixture");
+    assert_eq!(
+        capabilities.language.mode,
+        seda_protocol::LanguageMode::Fixed
+    );
+    assert_eq!(capabilities.language.fixed.as_deref(), Some("en"));
+    assert!(!capabilities.language.supports_auto);
+}
+
+#[tokio::test]
 async fn allows_browser_preflight_only_for_configured_origins() {
     let state = ServerState::new(
         Arc::new(FixtureEngine::default()),
@@ -123,6 +146,39 @@ async fn transcribes_a_real_wav_request_through_the_full_http_stack() {
     assert_eq!(transcript.text, "hello world");
     assert_eq!(transcript.language.as_deref(), Some("en"));
     assert_eq!(transcript.words.len(), 2);
+}
+
+#[tokio::test]
+async fn omitted_language_uses_the_fixed_models_language() {
+    let address = spawn_server().await;
+    let response = reqwest::Client::new()
+        .post(format!("http://{address}/v1/transcriptions"))
+        .bearer_auth(TOKEN)
+        .header("content-type", "audio/wav")
+        .body(wav_fixture())
+        .send()
+        .await
+        .expect("transcription request succeeds");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let transcript: seda_protocol::Transcript =
+        response.json().await.expect("transcript is valid JSON");
+    assert_eq!(transcript.language.as_deref(), Some("en"));
+}
+
+#[tokio::test]
+async fn fixed_model_rejects_explicit_auto_language() {
+    let address = spawn_server().await;
+    let response = reqwest::Client::new()
+        .post(format!("http://{address}/v1/transcriptions?language=auto"))
+        .bearer_auth(TOKEN)
+        .header("content-type", "audio/wav")
+        .body(wav_fixture())
+        .send()
+        .await
+        .expect("request succeeds");
+
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
 }
 
 #[tokio::test]

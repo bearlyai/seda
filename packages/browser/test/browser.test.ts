@@ -4,16 +4,16 @@ import { SedaBrowser } from "../src/browser.js";
 describe("SedaBrowser options", () => {
   it("rejects unknown models before creating a worker", async () => {
     await expect(
-      SedaBrowser.create({ model: "surprise" as never }),
+      SedaBrowser.prepare({ modelId: "surprise" as never }),
     ).rejects.toMatchObject({
       code: "invalid_request",
-      message: "unknown browser model: surprise",
+      message: "unknown browser model ID: surprise",
     });
   });
 
   it("rejects unknown devices before creating a worker", async () => {
     await expect(
-      SedaBrowser.create({ device: "cuda" as never }),
+      SedaBrowser.prepare({ device: "cuda" as never }),
     ).rejects.toMatchObject({
       code: "invalid_request",
       message: "unknown browser device: cuda",

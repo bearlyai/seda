@@ -7,13 +7,15 @@ surfaces intentionally share the same nouns.
 ## In-browser runtime
 
 ```ts
-const seda = await SedaBrowser.create({
-  model?: "moonshine-tiny"; // default
+const seda = await SedaBrowser.prepare({
+  modelId?: "onnx-community/moonshine-tiny-ONNX"; // default
   device?: "auto" | "webgpu" | "wasm"; // default: auto
   signal?: AbortSignal;
   onProgress?: (event: ModelLoadProgress) => void;
 });
 
+// Exact identity of the model that is resident.
+seda.model: ModelIdentity;
 await seda.status(): Promise<Status>;
 await seda.capabilities(): Promise<Capabilities>;
 await seda.listen(options?: BrowserListenOptions): Promise<BrowserSession>;
@@ -23,9 +25,10 @@ await seda.microphone(
 await seda.close(): Promise<void>;
 ```
 
-`create()` downloads and caches the pinned model, loads it in a dedicated
+`prepare()` downloads and caches the pinned model, loads it in a dedicated
 module Worker, chooses WebGPU with WASM fallback, warms inference, and resolves
-when ready. It starts no server and needs no token.
+when ready. It starts no server and needs no token. `create()` remains as a
+deprecated compatibility alias.
 
 ```ts
 interface ModelLoadProgress {
@@ -44,7 +47,7 @@ interface BrowserMicrophoneOptions extends MicrophoneOptions {
 }
 ```
 
-Moonshine Tiny is English-only. Its capability reports
+The current browser model is English-only. Its capability reports
 `streaming: "buffered"` because every partial is a revisable decode of the
 current utterance. It does not claim word timestamps, EOU events, a global
 shortcut, or focused-application insertion.
@@ -56,8 +59,9 @@ type Profile = "compact" | "balanced" | "quality";
 
 await SedaNode.prepare({
   binaryPath?: string;
-  profile?: Profile;       // default: balanced
-  language?: string;       // default: auto
+  modelId?: string;        // preferred: exact upstream ID
+  variant?: string;        // for example q4_k or q8_0
+  profile?: Profile;       // optional convenience alias
   dataDirectory?: string;
   signal?: AbortSignal;
   onProgress?: (event: PrepareProgress) => void;
@@ -65,8 +69,9 @@ await SedaNode.prepare({
 
 const seda = await SedaNode.start({
   binaryPath?: string;
-  profile?: Profile;       // model loaded once at process start
-  language?: string;
+  modelId?: string;
+  variant?: string;
+  profile?: Profile;
   dataDirectory?: string;
   allowedOrigins?: string[];
   startupTimeoutMs?: number;
@@ -84,6 +89,10 @@ random loopback port, reads one structured readiness line, injects a private
 token, and owns child shutdown. It implements `AsyncDisposable`.
 `browserConnection()` is an explicit handoff for a trusted browser or Electron
 renderer; never give it to remote content.
+
+Model identity is host-scoped; language is request- or stream-scoped. Prepare
+and load a prompted multilingual model once, then use `listen({ language:
+"de-DE" })` and `listen({ language: "ja-JP" })` without reloading weights.
 
 ## Universal JavaScript client
 
@@ -136,6 +145,35 @@ recognizer, and returns its final result. Call it from a user gesture.
 See the [complete browser guide](browser.md) for connection bootstrap and
 push-to-talk examples.
 
+## Python, Go, and Swift clients
+
+The native SDKs expose the same lifecycle without inventing language-specific
+wrappers:
+
+```python
+seda = Seda.connect("http://127.0.0.1:7331", token)
+session = seda.listen(language="de-DE")
+session.write(pcm_s16le)
+final = session.commit(on_transcript=lambda update: print(update.text))
+```
+
+```go
+client, _ := seda.Connect(ctx, seda.Options{BaseURL: address, Token: token})
+session, _ := client.Listen(ctx, seda.ListenOptions{Language: "de-DE"})
+session.Write(pcmS16LE)
+final, _ := session.Commit(ctx, onTranscript)
+```
+
+```swift
+let seda = try await Seda.connect(baseURL: address, token: token)
+let session = try await seda.listen(language: "de-DE")
+try await session.write(pcmS16LE)
+let final = try await session.commit(onTranscript: render)
+```
+
+See the package READMEs for [Python](../sdks/python/README.md),
+[Go](../sdks/go/README.md), and [Swift](../sdks/swift/README.md).
+
 ### Advanced PCM session
 
 `listen()` is for hosts that already own capture and produce the wire format.
@@ -183,15 +221,37 @@ Authorization: Bearer <ephemeral token>
 ```json
 {
   "runtime": "parakeet.cpp",
-  "model": "parakeet-realtime-eou-120m-q4",
-  "languages": ["en"],
+  "model": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  "resolvedModel": {
+    "id": "nvidia/nemotron-3.5-asr-streaming-0.6b",
+    "revision": "f3d333391852ba876df169dcc9ba902d25b6ab0b",
+    "variant": "q4_k",
+    "runtime": "parakeet.cpp"
+  },
+  "language": {
+    "mode": "prompted",
+    "supported": ["en-US", "de-DE", "ja-JP"],
+    "supportsAuto": true
+  },
+  "languages": ["en-US", "de-DE", "ja-JP"],
   "streaming": "true",
-  "punctuation": false,
+  "punctuation": true,
   "wordTimestamps": true,
   "globalPushToTalk": false,
   "focusedAppInsertion": false
 }
 ```
+
+`resolvedModel` is the reproducible identity applications should display or
+record. `model` and `languages` remain compatibility fields. `language.mode`
+has one of four honest values:
+
+- `fixed`: the checkpoint recognizes one language; `fixed` names it.
+- `prompted`: choose a supported language for every request or stream.
+- `automatic`: the runtime detects language and does not accept a prompt.
+- `checkpoint`: language is baked into a selected checkpoint.
+
+`supportsAuto` says whether callers may pass `auto`.
 
 ### `POST /v1/transcriptions?language=en`
 
@@ -235,7 +295,32 @@ Response:
 The ticket expires after 60 seconds and is removed on its first upgrade attempt.
 Browser `Origin` headers are denied unless present in the daemon allowlist.
 HTTP requests with an `Origin` receive CORS permission only when the same exact
-origin was configured.
+origin was configured. `language` belongs to this session. It is not part of
+model preparation or process startup.
+
+## CLI
+
+Use exact model IDs for reproducible installations:
+
+```sh
+seda models
+seda prepare \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k
+seda doctor \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k
+seda serve \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k
+seda transcribe speech.wav \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k \
+  --language de-DE
+```
+
+`--profile compact|balanced|quality` is a convenience alias when exact identity
+is unimportant. `prepare`, `doctor`, and `serve` deliberately take no language.
 
 ## WebSocket
 

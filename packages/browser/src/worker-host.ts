@@ -75,7 +75,7 @@ export class InferenceWorker implements InferenceHost {
     host.#onProgress = options.onProgress;
     options.onProgress?.({
       stage: "loading",
-      message: `Loading ${model.name}`,
+      message: `Loading ${model.displayName}`,
     });
 
     const onAbort = () => {

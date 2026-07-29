@@ -1,14 +1,44 @@
 # Model selection
 
-Seda v0.2 exposes one browser profile and three native profiles. Applications
-choose an intent-level tier rather than constructing model URLs.
+Seda exposes exact upstream model IDs. A variant selects a concrete runtime
+artifact; an immutable revision and runtime complete the resolved identity.
+Profiles remain optional aliases, not the primary API.
 
-| Runtime/profile | Pinned model | Download | Languages | Output |
-| --- | --- | ---: | --- | --- |
-| browser | Moonshine Tiny ONNX, FP32 encoder + Q8 decoder | ~55 MB | English | buffered revisions, punctuation |
-| `compact` | Parakeet Realtime EOU 120M v1, Q4_K | 129,133,984 bytes | English | true streaming, EOU, word times |
-| `balanced` | Nemotron 3.5 ASR Streaming 0.6B, Q4_K | 718,102,624 bytes | 32 locales | true streaming, punctuation, word times |
-| `quality` | Nemotron 3.5 ASR Streaming 0.6B, Q8_0 | 983,696,512 bytes | 32 locales | same model, higher weight precision |
+| Runtime | Model ID | Variant | Alias | Download | Language mode | Output |
+| --- | --- | --- | --- | ---: | --- | --- |
+| Browser | `onnx-community/moonshine-tiny-ONNX` | `q4` WebGPU / `q8` WASM | — | ~55 MB | fixed English | buffered revisions, punctuation |
+| Native | `nvidia/parakeet_realtime_eou_120m-v1` | `q4_k` | `compact` | 129,133,984 bytes | fixed English | true streaming, EOU, word times |
+| Native | `nvidia/nemotron-3.5-asr-streaming-0.6b` | `q4_k` | `balanced` | 718,102,624 bytes | prompted, 32 locales, auto | true streaming, punctuation, word times |
+| Native | `nvidia/nemotron-3.5-asr-streaming-0.6b` | `q8_0` | `quality` | 983,696,512 bytes | prompted, 32 locales, auto | same model, higher weight precision |
+
+Prepare and start by ID:
+
+```sh
+seda prepare \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k
+seda serve \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k
+```
+
+Then select `de-DE`, `ja-JP`, or `auto` on each transcription or live session.
+Changing the language prompt does not prepare or reload the model.
+
+## Language modes
+
+Seda reports language behavior instead of assuming every multilingual model
+works the same way:
+
+| Mode | Meaning | When language is chosen |
+| --- | --- | --- |
+| `fixed` | One model recognizes one language | Fixed by the model |
+| `prompted` | One resident model accepts a language prompt | Every call or session |
+| `automatic` | The runtime detects language | No caller prompt |
+| `checkpoint` | A separate checkpoint exists per language | When choosing/preparing the model ID |
+
+Applications should build their picker from `capabilities().language`, not from
+hard-coded product tiers.
 
 ## Browser: Moonshine Tiny
 
@@ -29,7 +59,7 @@ decodes the current utterance, exposes those outputs as replaceable buffered
 revisions, and performs a final decode on commit. One utterance is limited to
 the model’s documented 30 seconds.
 
-The compact model is attractive for push-to-talk because NVIDIA describes it
+The compact native model is attractive for push-to-talk because NVIDIA describes it
 as a 120M-parameter cache-aware streaming recognizer with 80–160 ms latency and
 explicit end-of-utterance output. It is English-only and intentionally has no
 punctuation or capitalization:

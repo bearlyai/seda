@@ -1,5 +1,5 @@
 use crate::{Error, Paths, Result};
-use seda_protocol::{Profile, StreamingKind};
+use seda_protocol::{LanguageMode, ModelIdentity, Profile, StreamingKind};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -38,13 +38,20 @@ pub struct RuntimeArchive {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ModelSpec {
     pub id: String,
+    pub revision: String,
+    pub variant: String,
+    #[serde(default)]
+    pub default_variant: bool,
     pub display_name: String,
     pub runtime: String,
     pub profiles: Vec<Profile>,
     pub purpose: ModelPurpose,
     pub languages: Vec<String>,
+    pub language_mode: LanguageMode,
+    pub supports_auto: bool,
     pub streaming: StreamingKind,
     pub punctuation: bool,
     pub word_timestamps: bool,
@@ -84,27 +91,46 @@ impl Catalog {
         serde_json::from_str(CATALOG_JSON).map_err(Error::from)
     }
 
-    /// Selects the first model matching an intent, language, and purpose.
+    /// Selects a concrete model ID and optional variant.
     ///
     /// # Errors
     ///
     /// Returns [`Error::ModelUnavailable`] when no catalog entry matches.
-    pub fn resolve_model(
+    pub fn resolve_model_id(
         &self,
-        profile: Profile,
-        language: &str,
+        model_id: &str,
+        variant: Option<&str>,
         purpose: ModelPurpose,
     ) -> Result<&ModelSpec> {
         self.models
             .iter()
             .find(|model| {
-                model.profiles.contains(&profile)
+                model.id == model_id
                     && model.purpose == purpose
-                    && supports_language(model, language)
+                    && variant.map_or(model.default_variant, |value| model.variant == value)
             })
             .ok_or_else(|| Error::ModelUnavailable {
-                profile: profile.to_string(),
-                language: language.to_owned(),
+                selector: variant.map_or_else(
+                    || model_id.to_owned(),
+                    |value| format!("{model_id}#{value}"),
+                ),
+            })
+    }
+
+    /// Resolves a hardware-aware convenience profile.
+    ///
+    /// Profiles are aliases only; callers should expose the returned concrete
+    /// model identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ModelUnavailable`] when the profile has no model.
+    pub fn resolve_profile(&self, profile: Profile, purpose: ModelPurpose) -> Result<&ModelSpec> {
+        self.models
+            .iter()
+            .find(|model| model.profiles.contains(&profile) && model.purpose == purpose)
+            .ok_or_else(|| Error::ModelUnavailable {
+                selector: format!("profile:{profile}"),
             })
     }
 
@@ -150,11 +176,11 @@ impl Catalog {
     pub fn prepared(
         &self,
         paths: &Paths,
-        profile: Profile,
-        language: &str,
+        model_id: &str,
+        variant: Option<&str>,
     ) -> Result<PreparedModel> {
         let model = self
-            .resolve_model(profile, language, ModelPurpose::Realtime)?
+            .resolve_model_id(model_id, variant, ModelPurpose::Realtime)?
             .clone();
         let (runtime, archive) = self.resolve_runtime(&model.runtime)?;
         let runtime_dir = paths.runtime_dir(runtime, archive);
@@ -180,17 +206,16 @@ impl Catalog {
     }
 }
 
-fn supports_language(model: &ModelSpec, requested: &str) -> bool {
-    requested == "auto"
-        || model.languages.iter().any(|language| {
-            language == requested
-                || requested
-                    .split_once('-')
-                    .is_some_and(|(base, _)| language == base)
-                || language
-                    .split_once('-')
-                    .is_some_and(|(base, _)| base == requested)
-        })
+impl ModelSpec {
+    #[must_use]
+    pub fn identity(&self) -> ModelIdentity {
+        ModelIdentity {
+            id: self.id.clone(),
+            revision: self.revision.clone(),
+            variant: self.variant.clone(),
+            runtime: self.runtime.clone(),
+        }
+    }
 }
 
 fn preferred_accelerator(os: &str, arch: &str) -> &'static str {
@@ -215,30 +240,38 @@ mod tests {
     use seda_protocol::Profile;
 
     #[test]
-    fn compact_english_resolves_to_small_streaming_model() {
+    fn compact_resolves_to_small_streaming_model() {
         let catalog = Catalog::embedded().expect("catalog parses");
         let model = catalog
-            .resolve_model(Profile::Compact, "en", ModelPurpose::Realtime)
+            .resolve_profile(Profile::Compact, ModelPurpose::Realtime)
             .expect("model resolves");
-        assert_eq!(model.id, "parakeet-realtime-eou-120m-q4");
+        assert_eq!(model.id, "nvidia/parakeet_realtime_eou_120m-v1");
+        assert_eq!(model.variant, "q4_k");
     }
 
     #[test]
-    fn balanced_multilingual_uses_nemotron() {
+    fn exact_model_id_can_choose_a_variant() {
         let catalog = Catalog::embedded().expect("catalog parses");
         let model = catalog
-            .resolve_model(Profile::Balanced, "de-DE", ModelPurpose::Realtime)
+            .resolve_model_id(
+                "nvidia/nemotron-3.5-asr-streaming-0.6b",
+                Some("q8_0"),
+                ModelPurpose::Realtime,
+            )
             .expect("model resolves");
-        assert!(model.id.starts_with("nemotron-3.5"));
+        assert_eq!(model.variant, "q8_0");
     }
 
     #[test]
-    fn compact_rejects_unsupported_language() {
+    fn exact_model_id_uses_its_default_variant() {
         let catalog = Catalog::embedded().expect("catalog parses");
-        assert!(
-            catalog
-                .resolve_model(Profile::Compact, "de", ModelPurpose::Realtime)
-                .is_err()
-        );
+        let model = catalog
+            .resolve_model_id(
+                "nvidia/nemotron-3.5-asr-streaming-0.6b",
+                None,
+                ModelPurpose::Realtime,
+            )
+            .expect("model resolves");
+        assert_eq!(model.variant, "q4_k");
     }
 }
