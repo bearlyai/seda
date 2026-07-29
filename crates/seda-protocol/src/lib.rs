@@ -52,6 +52,34 @@ pub enum StreamingKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LanguageMode {
+    Fixed,
+    Prompted,
+    Automatic,
+    Checkpoint,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelIdentity {
+    pub id: String,
+    pub revision: String,
+    pub variant: String,
+    pub runtime: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguageCapabilities {
+    pub mode: LanguageMode,
+    pub supported: Vec<String>,
+    pub supports_auto: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fixed: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Status {
     pub name: String,
     pub version: String,
@@ -65,7 +93,11 @@ pub struct Status {
 #[allow(clippy::struct_excessive_bools)]
 pub struct Capabilities {
     pub runtime: String,
+    /// Deprecated compatibility field. Use `resolved_model.id`.
     pub model: String,
+    pub resolved_model: ModelIdentity,
+    pub language: LanguageCapabilities,
+    /// Deprecated compatibility field. Use `language.supported`.
     pub languages: Vec<String>,
     pub streaming: StreamingKind,
     pub punctuation: bool,
@@ -105,7 +137,7 @@ pub struct SessionRequest {
 }
 
 fn default_language() -> String {
-    "auto".to_owned()
+    String::new()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

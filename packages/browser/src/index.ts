@@ -5,9 +5,9 @@ export type {
   BrowserListenOptions,
   BrowserMicrophoneOptions,
   BrowserModel,
+  BrowserModelId,
   ModelLoadProgress,
   ModelLoadStage,
   ResolvedBrowserDevice,
   SedaBrowserOptions,
 } from "./types.js";
-

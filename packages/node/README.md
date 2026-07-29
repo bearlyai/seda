@@ -22,21 +22,24 @@ or pass `binaryPath`.
 import { SedaNode } from "@bearlyai/seda-node";
 
 await SedaNode.prepare({
-  profile: "balanced",
-  language: "en",
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
   onProgress: updateDownloadUI,
 });
 
 await using seda = await SedaNode.start({
-  profile: "balanced",
-  language: "en",
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
 });
 
-const transcript = await seda.transcribe(wavBytes, { language: "en" });
+const transcript = await seda.transcribe(wavBytes, { language: "de-DE" });
 ```
 
 The child process is launched without a shell, binds a random loopback port,
 uses an ephemeral token, and is stopped by async disposal.
+Language is selected on each `transcribe()` or `listen()` call. It is not part
+of preparation or startup, so a resident prompted multilingual model can serve
+different languages without reloading.
 
 ## Connect an Electron renderer microphone
 
@@ -44,8 +47,8 @@ Allow only the renderer's exact origin:
 
 ```ts
 const seda = await SedaNode.start({
-  profile: "compact",
-  language: "en",
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
   allowedOrigins: ["http://localhost:5173"],
 });
 

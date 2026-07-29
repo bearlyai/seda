@@ -31,13 +31,15 @@ tools, web pages, and headless services still control their own UX and policy.
 - `@bearlyai/seda-browser`: in-process Worker host for Moonshine through
   Transformers.js, WebGPU, and WASM.
 - `@bearlyai/seda-node`: sidecar installer and lifecycle manager.
+- `sdks/python`, `sdks/go`, and `sdks/swift`: typed protocol clients for hosts
+  that manage the native sidecar themselves.
 
 Rust crates are internal implementation units for v0.2 and are not published to
 crates.io. The binary and wire protocol are the native compatibility boundary.
 
 ## Browser process model
 
-`SedaBrowser.create()` creates one module Worker and loads one pinned model. The
+`SedaBrowser.prepare()` creates one module Worker and loads one pinned model. The
 Worker owns all Transformers.js and ONNX execution, serializes inference, and
 reports download/compile/readiness progress. The page owns only session state,
 audio capture, and transcript events.
@@ -49,11 +51,15 @@ also bounds per-session memory.
 
 ## Process model
 
-The host selects one profile and language when it starts Seda. Seda loads one
-model and keeps it resident. Each live session creates an engine stream on a
-blocking actor thread; Tokio handles only bounded control and event channels.
-This keeps native inference out of async reactor threads and makes backpressure
-explicit.
+The host selects one exact model ID and variant when it starts Seda. Seda loads
+that model once and keeps it resident. Each transcription or live session
+chooses its own language. Prompted multilingual models can therefore serve
+consecutive languages without a weight reload; fixed and checkpoint models
+report that limitation in capabilities.
+
+Each live session creates an engine stream on a blocking actor thread; Tokio
+handles only bounded control and event channels. This keeps native inference
+out of async reactor threads and makes backpressure explicit.
 
 The current parakeet.cpp adapter serializes access to the model context with a
 mutex because the C ABI exposes a shared context. The server limits pending
@@ -64,7 +70,8 @@ depth.
 
 The embedded catalog is the source of truth. An installation:
 
-1. resolves a profile, language, OS, architecture, and accelerator;
+1. resolves an exact model ID and variant plus OS, architecture, and
+   accelerator;
 2. downloads to a scoped `.part` file with HTTP range resumption;
 3. hashes the complete artifact with SHA-256;
 4. rejects mismatches and deletes the bad partial;
@@ -75,10 +82,15 @@ Model weights and native runtimes are never committed to the repository or
 GitHub release. `SEDA_HOME` can redirect all managed data for application
 packaging, tests, or portable installations.
 
+Profiles are optional aliases resolved before installation. Language is never
+an installation key. The prepared cache key is the resolved model ID, revision,
+variant, and runtime, so changing a stream language does not duplicate model
+files.
+
 The browser host requests the immutable Moonshine model revision recorded in
 `packages/browser/src/models.ts`. Transformers.js stores fetched files in the
 browser Cache API. Cache eviction can trigger another download; `create()`
-remains the single readiness boundary either way.
+is a deprecated alias, while `prepare()` is the single readiness boundary.
 
 ## Security model
 

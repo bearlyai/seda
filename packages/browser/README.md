@@ -30,7 +30,8 @@ import { SedaBrowser } from "@bearlyai/seda-browser";
 const status = document.querySelector("#status")!;
 const preview = document.querySelector("#preview")!;
 
-const seda = await SedaBrowser.create({
+const seda = await SedaBrowser.prepare({
+  modelId: "onnx-community/moonshine-tiny-ONNX",
   onProgress: ({ stage, percent }) => {
     status.textContent =
       stage === "downloading" && percent !== undefined
@@ -59,11 +60,11 @@ dictateButton.addEventListener("pointerup", async () => {
 });
 ```
 
-`SedaBrowser.create()` downloads the pinned Moonshine Tiny model, stores it in
+`SedaBrowser.prepare()` downloads the pinned Moonshine Tiny model, stores it in
 the browser cache, loads it in a Worker, selects WebGPU when it works, falls
 back to WASM, and warms inference. It resolves only when speech recognition is
 ready. Call it during an install/readiness screen rather than on the first
-push-to-talk press.
+push-to-talk press. `create()` remains a deprecated compatibility alias.
 
 `microphone()` requests access, creates an AudioWorklet, downmixes and resamples
 the selected device to 16 kHz, and starts inference. `stop()` releases every
@@ -73,13 +74,14 @@ resources and discards the result.
 ## API
 
 ```ts
-const seda = await SedaBrowser.create({
-  model: "moonshine-tiny", // default; English, roughly 55 MB of model files
-  device: "auto",         // WebGPU, then WASM fallback
+const seda = await SedaBrowser.prepare({
+  modelId: "onnx-community/moonshine-tiny-ONNX", // default; fixed English
+  device: "auto", // WebGPU, then WASM fallback
   signal,
   onProgress,
 });
 
+console.log(seda.model.id, seda.model.revision, seda.model.variant);
 await seda.status();
 await seda.capabilities();
 

@@ -44,8 +44,8 @@ function showInstall(progress: ModelLoadProgress) {
   }
 }
 
-const seda = await SedaBrowser.create({
-  model: "moonshine-tiny",
+const seda = await SedaBrowser.prepare({
+  modelId: "onnx-community/moonshine-tiny-ONNX",
   device: "auto",
   onProgress: showInstall,
 });
@@ -97,11 +97,13 @@ button.addEventListener("pointercancel", () => {
 });
 ```
 
-`create()` is the installation boundary. It downloads the immutable
-`moonshine-tiny` revision from Hugging Face on first use, uses the browser cache
-on later loads, starts a module Worker, selects WebGPU when available, falls
-back to WASM, and warms the model. Its promise resolves only when the first
-recording can begin.
+`prepare()` is the installation boundary. It downloads the immutable
+`onnx-community/moonshine-tiny-ONNX` revision from Hugging Face on first use,
+uses the browser cache on later loads, starts a module Worker, selects WebGPU
+when available, falls back to WASM, and warms the model. Its promise resolves
+only when the first recording can begin. `seda.model` and
+`seda.capabilities().resolvedModel` expose the exact ID, revision, variant, and
+runtime that were loaded.
 
 Inference stays in the Worker so it cannot block rendering. Audio stays inside
 the page and worker. Seda Browser starts no server, opens no port, creates no
@@ -224,8 +226,9 @@ request. Call `cancel()` if a key is released during a startup race. Call
 - The application build emits roughly 22 MB of ONNX runtime assets. First use
   additionally downloads roughly 55 MB of model files; cache eviction can
   require another model download.
-- Moonshine Tiny is English-only. Use native-hosted Seda for the multilingual
-  balanced and quality profiles.
+- The current browser model is English-only. Seda rejects unsupported stream
+  languages before recording. Use native-hosted Nemotron for multilingual
+  recognition today.
 
 The deterministic session API runs in Chromium, Firefox, and WebKit on every
 pull request. Chromium additionally runs the complete fake-device microphone
@@ -243,10 +246,13 @@ In Electron main:
 import { ipcMain } from "electron";
 import { SedaNode } from "@bearlyai/seda-node";
 
-await SedaNode.prepare({ profile: "balanced", language: "de-DE" });
+await SedaNode.prepare({
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
+});
 const seda = await SedaNode.start({
-  profile: "balanced",
-  language: "de-DE",
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
   allowedOrigins: ["http://localhost:5173"],
 });
 
@@ -283,8 +289,8 @@ Do not expose the connection to remote content. A local web launcher can run:
 
 ```sh
 seda serve \
-  --profile compact \
-  --language en \
+  --model-id nvidia/nemotron-3.5-asr-streaming-0.6b \
+  --variant q4_k \
   --allow-origin http://localhost:5173
 ```
 
@@ -307,3 +313,31 @@ const final = await session.commit();
 ```
 
 Most applications should use `microphone()` instead.
+
+## Model and language lifecycle
+
+The host chooses an exact model once:
+
+```ts
+await SedaNode.prepare({
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
+});
+
+const seda = await SedaNode.start({
+  modelId: "nvidia/nemotron-3.5-asr-streaming-0.6b",
+  variant: "q4_k",
+});
+```
+
+The renderer chooses a language for each recording:
+
+```ts
+const german = await seda.microphone({ language: "de-DE" });
+const japanese = await seda.microphone({ language: "ja-JP" });
+const detected = await seda.microphone({ language: "auto" });
+```
+
+All three sessions reuse the resident Nemotron weights. Check
+`capabilities().language` before presenting language choices: fixed checkpoints
+cannot change language, while prompted models can change it per session.

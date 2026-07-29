@@ -14,7 +14,7 @@ let microphone: MicrophoneSession | undefined;
 
 try {
   const requestedDevice = new URLSearchParams(location.search).get("device");
-  const seda = await SedaBrowser.create({
+  const seda = await SedaBrowser.prepare({
     ...(requestedDevice === "wasm" ? { device: "wasm" as const } : {}),
     onProgress: (update) => {
       progress.textContent = `${update.stage}:${update.device ?? ""}`;

@@ -15,6 +15,9 @@ pnpm test
 pnpm build
 pnpm exec playwright install chromium firefox webkit
 pnpm test:browser
+PYTHONPATH=sdks/python/src python3 -m unittest discover -s sdks/python/tests -v
+(cd sdks/go && go test ./...)
+swift test
 ```
 
 Use the pnpm version pinned in `package.json`. Dependency releases must be at
@@ -36,9 +39,12 @@ Keep host-only choices out of live sessions. New wire fields must have clear
 runtime semantics, stable serialization, and integration coverage. Breaking
 protocol changes require a new protocol major version.
 
-Model catalog changes must pin an immutable or content-verified artifact,
-SHA-256, exact byte size, upstream source, license, languages, and capabilities.
-Include a real-model test result for each changed launch target.
+Model catalog changes must expose an exact upstream ID, immutable revision,
+variant, runtime, SHA-256, exact byte size, upstream source, license, language
+mode, languages, and capabilities. Profiles are optional aliases. Language
+belongs to the transcription or live session and must not become part of model
+preparation unless the upstream artifact is genuinely a language-specific
+checkpoint. Include a real-model test result for each changed launch target.
 
 Browser changes must keep both supported paths user-level. The in-process lane
 must exercise its Worker/session contract in Chromium, Firefox, and WebKit; the
@@ -57,5 +63,9 @@ pnpm exec playwright test \
 
 The native-hosted browser lane must still cover authenticated CORS, WebSocket
 audio, a live revision, cleanup, and a final transcript.
+
+Python, Go, and Swift changes must pass both unit tests and their env-gated
+fixture-sidecar integration test. CI launches the real Rust HTTP/WebSocket
+service for those jobs; mocked transport coverage alone is insufficient.
 
 By contributing, you agree that your contribution is licensed under Apache-2.0.

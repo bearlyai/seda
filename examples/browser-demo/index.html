@@ -693,8 +693,8 @@
         setState("Loading model");
 
         try {
-          seda = await SedaBrowser.create({
-            model: "moonshine-tiny",
+          seda = await SedaBrowser.prepare({
+            modelId: "onnx-community/moonshine-tiny-ONNX",
             device: "auto",
             onProgress(progress) {
               const percent = Math.max(
@@ -720,7 +720,8 @@
 
           const capabilities = await seda.capabilities();
           elements.runtime.textContent = capabilities.runtime;
-          elements.model.textContent = capabilities.model;
+          elements.model.textContent =
+            `${capabilities.resolvedModel.id}#${capabilities.resolvedModel.variant}`;
           elements.mode.textContent = capabilities.streaming;
           elements.progressFill.style.width = "100%";
           elements.progress.setAttribute("aria-valuenow", "100");
