@@ -9,8 +9,8 @@ the GitHub release:
 
 ```sh
 pnpm add \
-  https://github.com/bearlyai/seda/releases/download/v0.1.1/bearlyai-seda-0.1.1.tgz \
-  https://github.com/bearlyai/seda/releases/download/v0.1.1/bearlyai-seda-node-0.1.1.tgz
+  https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-0.2.0.tgz \
+  https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-node-0.2.0.tgz
 ```
 
 Install the matching `seda` binary from the same release and put it on `PATH`,

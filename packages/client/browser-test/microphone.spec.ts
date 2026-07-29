@@ -96,7 +96,12 @@ test.afterAll(async () => {
 
 test("captures the browser microphone and streams a final transcript", async ({
   page,
+  browserName,
 }) => {
+  test.skip(
+    browserName !== "chromium",
+    "the deterministic fake microphone is Chromium-specific",
+  );
   const browserErrors: string[] = [];
   page.on("pageerror", (error) => {
     browserErrors.push(error.message);

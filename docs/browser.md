@@ -1,63 +1,58 @@
-# Browser microphone guide
+# Browser guide
 
-The browser package owns the complete page-level audio path. Application code
-does not need to encode WAV files, inspect blobs, choose a browser sample rate,
-or push PCM frames.
+Seda has two browser integrations:
 
-```text
-getUserMedia
-  → AudioWorklet capture
-  → mono 16 kHz PCM resampling
-  → authenticated Seda WebSocket
-  → revisable live text
-  → final transcript on stop()
+| Mode | Package | Inference | Use it when |
+| --- | --- | --- | --- |
+| In-browser | `@bearlyai/seda-browser` | Worker + WebGPU/WASM | A web page should work without installing a companion |
+| Native-hosted | `@bearlyai/seda` | Local Parakeet service | Electron or a launcher wants larger, multilingual, true-streaming models |
+
+Both expose `microphone()`, `listen()`, transcript revisions, `stop()`, and
+`cancel()`. Application UI does not handle WAV files or random blobs.
+
+## In-browser: complete push-to-talk
+
+Install:
+
+```sh
+pnpm add \
+  https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-0.2.0.tgz \
+  https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-browser-0.2.0.tgz
 ```
 
-The native Seda service still performs model installation and inference. A
-future WASM host can sit behind the same API, but v0.1.1 browsers connect to a
-local companion.
-
-## Complete push-to-talk example
-
-Your app launcher must first provide the page with Seda's private connection
-object:
-
-```ts
-type SedaConnection = {
-  baseUrl: string;
-  token: string;
-};
-
-declare global {
-  interface Window {
-    seda: {
-      connection(): Promise<SedaConnection>;
-    };
-  }
-}
-```
-
-Then the page can implement a complete press-and-hold interaction:
+Initialize once, before the first recording:
 
 ```ts
 import {
-  Seda,
-  SedaError,
-  type MicrophoneSession,
-} from "@bearlyai/seda";
+  SedaBrowser,
+  type ModelLoadProgress,
+} from "@bearlyai/seda-browser";
+import type { MicrophoneSession } from "@bearlyai/seda";
 
 const button = document.querySelector<HTMLButtonElement>("#dictate")!;
 const preview = document.querySelector<HTMLElement>("#preview")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 
-const seda = await Seda.connect(await window.seda.connection());
+function showInstall(progress: ModelLoadProgress) {
+  if (progress.stage === "downloading" && progress.percent !== undefined) {
+    status.textContent = `Installing speech model… ${Math.round(progress.percent)}%`;
+  } else {
+    status.textContent = progress.message ?? progress.stage;
+  }
+}
+
+const seda = await SedaBrowser.create({
+  model: "moonshine-tiny",
+  device: "auto",
+  onProgress: showInstall,
+});
+
 let microphone: Promise<MicrophoneSession> | undefined;
 
 button.addEventListener("pointerdown", (event) => {
   event.currentTarget.setPointerCapture(event.pointerId);
   if (microphone) return;
 
-  status.textContent = "Requesting microphone…";
   const pending = seda.microphone({
     language: "en",
     echoCancellation: true,
@@ -74,15 +69,10 @@ button.addEventListener("pointerdown", (event) => {
     },
   });
   microphone = pending;
-  void pending
-    .then(() => {
-      if (microphone === pending) status.textContent = "Listening";
-    })
-    .catch((error: unknown) => {
-      if (microphone === pending) microphone = undefined;
-      status.textContent =
-        error instanceof SedaError ? error.message : "Could not start dictation";
-    });
+  status.textContent = "Requesting microphone…";
+  void pending.then(() => {
+    if (microphone === pending) status.textContent = "Listening";
+  });
 });
 
 button.addEventListener("pointerup", async () => {
@@ -91,38 +81,32 @@ button.addEventListener("pointerup", async () => {
   if (!pending) return;
 
   status.textContent = "Finishing…";
-  try {
-    const active = await pending;
-    const final = await active.stop();
-    editor.insertText(final.text);
-    status.textContent = "Ready";
-  } catch (error) {
-    status.textContent =
-      error instanceof Error ? error.message : "Dictation failed";
-  }
+  const final = await (await pending).stop();
+  editor.insertText(final.text);
+  status.textContent = "Ready";
 });
 
 button.addEventListener("pointercancel", () => {
   const pending = microphone;
   microphone = undefined;
-  void pending
-    ?.then((active) => active.cancel())
-    .catch(() => undefined);
+  void pending?.then((active) => active.cancel()).catch(() => undefined);
   status.textContent = "Ready";
 });
 ```
 
-Call `microphone()` from a user gesture. Browsers may reject permission or keep
-an `AudioContext` suspended when capture starts from background code.
+`create()` is the installation boundary. It downloads the immutable
+`moonshine-tiny` revision from Hugging Face on first use, uses the browser cache
+on later loads, starts a module Worker, selects WebGPU when available, falls
+back to WASM, and warms the model. Its promise resolves only when the first
+recording can begin.
 
-`stop()` is the important semantic boundary: it stops and releases all browser
-media tracks, closes the audio graph, commits the recognizer, and resolves only
-after Seda returns the final transcript. `cancel()` performs the same cleanup
-but discards the result.
+Inference stays in the Worker so it cannot block rendering. Audio stays inside
+the page and worker. Seda Browser starts no server, opens no port, creates no
+token, and sends no audio to Seda or Bearly.
+The package also includes its pinned Transformers.js speech code and ONNX WASM
+asset, so it does not download executable runtime code from a CDN.
 
 ## Hold Shift to talk
-
-This works while your page or desktop renderer has keyboard focus:
 
 ```ts
 let microphone: Promise<MicrophoneSession> | undefined;
@@ -141,70 +125,134 @@ window.addEventListener("keyup", async (event) => {
   if (event.key !== "Shift" || !microphone) return;
   const pending = microphone;
   microphone = undefined;
-  const active = await pending;
-  const final = await active.stop();
+  const final = await (await pending).stop();
   editor.insertText(final.text);
 });
 
 window.addEventListener("blur", () => {
   const pending = microphone;
   microphone = undefined;
-  void pending
-    ?.then((active) => active.cancel())
-    .catch(() => undefined);
+  void pending?.then((active) => active.cancel()).catch(() => undefined);
 });
 ```
 
-A website cannot register a system-wide Shift shortcut. Electron, a native
-applet, or a browser extension must own the global shortcut and forward only
-the press/release intent to its trusted page.
+This shortcut works while the page is focused. Browsers deliberately cannot
+register a system-wide Shift hook. Electron, a browser extension, or a native
+applet must own the global shortcut and forward press/release intent.
 
-## Choose an input device
+## Buffered live text
 
-Ask for permission before expecting labeled device names:
+Moonshine is a fast utterance recognizer, not a cache-aware streaming model.
+Seda Browser runs it periodically over the current recording and reports
+`streaming: "buffered"`.
+
+```ts
+microphone.on("transcript", (update) => {
+  // Revisions replace previous text. They are not append-only tokens.
+  preview.textContent = update.text;
+});
+```
+
+Partial updates contain the current text in `unstableText`. The committed
+revision has `final: true`, moves the complete text to `stableText`, and is
+returned by `stop()`. `partialIntervalMs` defaults to 1,000 ms and can be
+configured from 250 to 5,000 ms. Shorter intervals cost more inference time.
+
+One utterance is limited to 30 seconds because that is Moonshine’s supported
+buffer. Longer dictation should commit at silence boundaries and start another
+session.
+
+## Device selection
+
+Ask for permission before expecting labeled devices:
 
 ```ts
 const permission = await navigator.mediaDevices.getUserMedia({ audio: true });
 permission.getTracks().forEach((track) => track.stop());
 
 const inputs = (await navigator.mediaDevices.enumerateDevices()).filter(
-  (device) => device.kind === "audioinput",
+  ({ kind }) => kind === "audioinput",
 );
 
-const deviceId = inputs[0]?.deviceId;
 const microphone = await seda.microphone({
-  language: "en",
-  ...(deviceId ? { deviceId } : {}),
+  deviceId: inputs[0]?.deviceId,
+  onTranscript: ({ text }) => {
+    preview.textContent = text;
+  },
 });
 ```
 
-Omit `deviceId` to follow the browser's current default input.
+Omit `deviceId` to follow the current browser default.
 
-## Get connection data into the page
-
-### Electron
-
-Start Seda in the main process and allow the exact renderer origin:
+## Error UX
 
 ```ts
-// main.ts
+import { SedaError } from "@bearlyai/seda";
+
+try {
+  const microphone = await seda.microphone();
+} catch (error) {
+  if (error instanceof SedaError) {
+    if (error.code === "permission_denied") {
+      showMicrophonePermissionHelp();
+    } else if (error.code === "audio_device_unavailable") {
+      showDevicePicker();
+    } else {
+      showRetry(error.message);
+    }
+  }
+}
+```
+
+Use an `AbortSignal` to cancel model installation or a pending microphone
+request. Call `cancel()` if a key is released during a startup race. Call
+`seda.close()` during application teardown.
+
+## Browser and deployment requirements
+
+- `getUserMedia` requires HTTPS or a loopback development origin.
+- AudioWorklet is loaded from a short-lived `blob:` URL, so strict CSP must
+  permit the worklet source.
+- The bundler must emit the module Worker referenced through
+  `new URL("./worker.js", import.meta.url)`.
+- Unless assets are mirrored, `connect-src` must permit
+  `https://huggingface.co` and `https://cdn-lfs.huggingface.co`.
+- WebGPU is an acceleration tier, not a requirement. WASM is the fallback.
+- The application build emits roughly 22 MB of ONNX runtime assets. First use
+  additionally downloads roughly 55 MB of model files; cache eviction can
+  require another model download.
+- Moonshine Tiny is English-only. Use native-hosted Seda for the multilingual
+  balanced and quality profiles.
+
+The deterministic session API runs in Chromium, Firefox, and WebKit on every
+pull request. Chromium additionally runs the complete fake-device microphone
+path. A separate GitHub lane downloads the pinned real model and transcribes a
+checksum-verified speech fixture through actual browser WASM.
+
+## Native-hosted browser or Electron
+
+Use this mode when the application can install a native helper and wants
+Parakeet’s true streaming, multilingual models, or word timestamps.
+
+In Electron main:
+
+```ts
 import { ipcMain } from "electron";
 import { SedaNode } from "@bearlyai/seda-node";
 
-await SedaNode.prepare({ profile: "compact", language: "en" });
+await SedaNode.prepare({ profile: "balanced", language: "de-DE" });
 const seda = await SedaNode.start({
-  profile: "compact",
-  language: "en",
+  profile: "balanced",
+  language: "de-DE",
   allowedOrigins: ["http://localhost:5173"],
 });
 
 ipcMain.handle("seda:connection", () => seda.browserConnection());
 ```
 
-Expose only that operation through a context-isolated preload:
+In a context-isolated preload:
 
 ```ts
-// preload.ts
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("seda", {
@@ -212,14 +260,23 @@ contextBridge.exposeInMainWorld("seda", {
 });
 ```
 
-Use a custom secure application protocol in production and put its exact origin
-in `allowedOrigins`. Do not enable Node integration in the renderer, expose the
-whole `SedaNode` object, or load remote content into a renderer that receives
-the token.
+In the trusted renderer:
 
-### Local web app
+```ts
+import { Seda } from "@bearlyai/seda";
 
-For development:
+const seda = await Seda.connect(await window.seda.connection());
+const microphone = await seda.microphone({
+  language: "de-DE",
+  onTranscript: ({ text }) => {
+    preview.textContent = text;
+  },
+});
+
+const final = await microphone.stop();
+```
+
+Do not expose the connection to remote content. A local web launcher can run:
 
 ```sh
 seda serve \
@@ -228,67 +285,22 @@ seda serve \
   --allow-origin http://localhost:5173
 ```
 
-The first stdout line has this shape:
+The page must receive the first stdout object `{ address, token }` through a
+private app-specific handoff. Never place the token in source, local storage, a
+query string, or analytics.
 
-```json
-{"address":"127.0.0.1:43123","token":"ephemeral-64-character-token"}
-```
+## Advanced PCM
 
-A production web app needs a small native launcher, browser extension native
-messaging host, or app-specific deep-link handshake to deliver that object.
-The browser sandbox cannot install or silently launch an arbitrary native
-binary. Never place a static Seda token in source code, local storage, a query
-string, or analytics.
-
-## Origin and page requirements
-
-- The page must be a secure context. HTTPS and loopback development origins
-  such as `http://localhost` qualify for microphone access.
-- Current Chromium also asks the user for Local Network Access when a public
-  HTTPS origin connects to Seda. The client automatically supplies the correct
-  `targetAddressSpace` hint: `"loopback"` for localhost and `"local"` for a
-  private LAN address.
-- Pass the page's exact origin to `seda serve --allow-origin ...` or
-  `SedaNode.start({ allowedOrigins: [...] })`.
-- Seda answers authenticated CORS preflights only for configured origins and
-  independently validates the WebSocket `Origin`.
-- The default AudioWorklet is loaded from a short-lived `blob:` URL. A strict
-  Content Security Policy must permit that worklet source.
-- Keep the connection token in memory and expose it only to trusted code.
-
-Browser requirements are documented by
-[MDN `getUserMedia`](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia),
-[MDN AudioWorklet](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorkletNode),
-and Chrome's
-[Local Network Access guide](https://developer.chrome.com/blog/local-network-access).
-
-## Lower-level audio API
-
-Use this only when another SDK already captures audio:
+Hosts that already produce signed 16-bit little-endian mono PCM at 16 kHz can
+use the same contract in either mode:
 
 ```ts
 const session = await seda.listen({ language: "en" });
-session.on("transcript", renderLiveTranscript);
-
-session.write(pcm16MonoAt16Khz);
+session.on("transcript", ({ text }) => {
+  preview.textContent = text;
+});
+session.write(pcm16);
 const final = await session.commit();
 ```
 
-Live frames are signed 16-bit little-endian PCM, mono, 16 kHz. Partial
-transcripts are revisions, not append-only deltas: replace displayed text with
-the newest event.
-
-## What GitHub tests
-
-The `Browser microphone` workflow launches Chromium with a deterministic fake
-microphone and a real fixture-enabled Seda process. It verifies:
-
-1. authenticated browser CORS negotiation;
-2. `Seda.connect()` protocol negotiation;
-3. browser microphone permission and `getUserMedia`;
-4. AudioWorklet capture and 16 kHz PCM resampling;
-5. WebSocket audio streaming and live revisions;
-6. `stop()` cleanup and the final transcript.
-
-Real acoustic quality is separately model-tested because a hosted CI runner
-does not have a meaningful physical microphone.
+Most applications should use `microphone()` instead.

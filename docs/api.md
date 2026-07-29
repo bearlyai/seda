@@ -1,7 +1,53 @@
 # Seda API v1
 
-The public contract has three layers: a managed host, a universal client, and a
-runtime-neutral wire protocol. The layers intentionally share the same nouns.
+The public contract has an in-browser runtime, a managed native host, a
+universal native-hosted client, and a runtime-neutral session shape. The
+surfaces intentionally share the same nouns.
+
+## In-browser runtime
+
+```ts
+const seda = await SedaBrowser.create({
+  model?: "moonshine-tiny"; // default
+  device?: "auto" | "webgpu" | "wasm"; // default: auto
+  signal?: AbortSignal;
+  onProgress?: (event: ModelLoadProgress) => void;
+});
+
+await seda.status(): Promise<Status>;
+await seda.capabilities(): Promise<Capabilities>;
+await seda.listen(options?: BrowserListenOptions): Promise<BrowserSession>;
+await seda.microphone(
+  options?: BrowserMicrophoneOptions,
+): Promise<MicrophoneSession>;
+await seda.close(): Promise<void>;
+```
+
+`create()` downloads and caches the pinned model, loads it in a dedicated
+module Worker, chooses WebGPU with WASM fallback, warms inference, and resolves
+when ready. It starts no server and needs no token.
+
+```ts
+interface ModelLoadProgress {
+  stage: "loading" | "downloading" | "compiling" | "ready";
+  file?: string;
+  loadedBytes?: number;
+  totalBytes?: number;
+  percent?: number;
+  device?: "webgpu" | "wasm";
+  message?: string;
+}
+
+interface BrowserMicrophoneOptions extends MicrophoneOptions {
+  partialIntervalMs?: number; // 250–5000; default: 1000
+  maxAudioSeconds?: number;   // 1–30; default: 30
+}
+```
+
+Moonshine Tiny is English-only. Its capability reports
+`streaming: "buffered"` because every partial is a revisable decode of the
+current utterance. It does not claim word timestamps, EOU events, a global
+shortcut, or focused-application insertion.
 
 ## Managed Node/Electron host
 
@@ -126,7 +172,7 @@ Authorization: Bearer <ephemeral token>
 ```json
 {
   "name": "seda",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "protocol": 1,
   "ready": true
 }
@@ -254,10 +300,22 @@ Stable codes include permission, model/download, hardware, audio-device,
 invalid-audio, busy, authentication/origin, cancellation, runtime, and internal
 failures. JavaScript surfaces them as `SedaError`.
 
-## Future browser/WASM host shape
+## Shared live-session contract
 
-The universal client now owns production browser capture. A future WASM host can
-reuse the same `microphone`, `status`, `capabilities`, `transcribe`, and
-`listen` semantics in-process. It should not pretend to be a loopback server or
-expose OS-only features. Model storage should use browser cache/OPFS, and the
-host must explicitly report whether it offers true or buffered streaming.
+Native WebSocket sessions and in-browser sessions both implement:
+
+```ts
+interface TranscriptionSession {
+  readonly id: string;
+  readonly events: AsyncIterable<ServerEvent>;
+  on(type, listener): () => void;
+  write(audio: Int16Array | ArrayBuffer | ArrayBufferView): void;
+  commit(): Promise<Transcript>;
+  cancel(): Promise<void>;
+}
+```
+
+That structural contract lets the same `MicrophoneSession` own page capture for
+both runtimes. It does not erase capability differences: native Parakeet emits
+true streaming, EOU, and word times where supported; browser Moonshine emits
+buffered text revisions and final text.

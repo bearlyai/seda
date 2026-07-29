@@ -1,7 +1,7 @@
 {
-  "name": "@bearlyai/seda-node",
+  "name": "@bearlyai/seda-browser",
   "version": "0.2.0",
-  "description": "Lifecycle-managed Seda sidecar for Node and Electron",
+  "description": "Private, in-browser speech recognition for Seda using WebGPU or WASM",
   "type": "module",
   "license": "Apache-2.0",
   "sideEffects": false,
@@ -13,30 +13,31 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-worker.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@bearlyai/seda": "workspace:*",
-    "ws": "^8.18.2"
+    "@bearlyai/seda": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.0.3",
-    "@types/ws": "^8.18.1",
+    "@huggingface/transformers": "3.7.6",
+    "@webgpu/types": "0.1.69",
+    "esbuild": "0.28.1",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.10"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/bearlyai/seda.git",
-    "directory": "packages/node"
+    "directory": "packages/browser"
   },
   "publishConfig": {
     "access": "public",

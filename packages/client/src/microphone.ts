@@ -1,10 +1,11 @@
 import { clientError, SedaError } from "./error.js";
-import type { Session } from "./session.js";
 import type {
   MicrophoneOptions,
   ServerEvent,
   SessionEventMap,
+  SessionListener,
   Transcript,
+  TranscriptionSession,
 } from "./types.js";
 
 const TARGET_SAMPLE_RATE = 16_000;
@@ -30,10 +31,6 @@ class SedaMicrophoneCapture extends AudioWorkletProcessor {
 registerProcessor("${WORKLET_NAME}", SedaMicrophoneCapture);
 `;
 
-type Listener<K extends keyof SessionEventMap> = (
-  event: SessionEventMap[K],
-) => void;
-
 /**
  * A live browser microphone connected to a Seda streaming session.
  *
@@ -45,7 +42,7 @@ export class MicrophoneSession {
   readonly id: string;
   readonly events: AsyncIterable<ServerEvent>;
 
-  readonly #session: Session;
+  readonly #session: TranscriptionSession;
   readonly #stream: MediaStream;
   readonly #context: AudioContext;
   readonly #source: MediaStreamAudioSourceNode;
@@ -54,19 +51,21 @@ export class MicrophoneSession {
   readonly #resampler: PcmResampler;
   readonly #abortSignal: AbortSignal | undefined;
   readonly #abort: () => void;
+  readonly #onRelease: (() => void) | undefined;
 
   #closed = false;
   #stopPromise: Promise<Transcript> | undefined;
   #cancelPromise: Promise<void> | undefined;
 
   private constructor(
-    session: Session,
+    session: TranscriptionSession,
     stream: MediaStream,
     context: AudioContext,
     source: MediaStreamAudioSourceNode,
     capture: AudioWorkletNode,
     sink: GainNode,
     options: MicrophoneOptions,
+    onRelease?: () => void,
   ) {
     this.id = session.id;
     this.events = session.events;
@@ -89,6 +88,7 @@ export class MicrophoneSession {
     this.#abort = () => {
       void this.cancel();
     };
+    this.#onRelease = onRelease;
 
     capture.port.onmessage = ({ data }: MessageEvent<unknown>) => {
       if (!this.#closed && data instanceof Float32Array) {
@@ -113,8 +113,9 @@ export class MicrophoneSession {
   }
 
   static async start(
-    createSession: () => Promise<Session>,
+    createSession: () => Promise<TranscriptionSession>,
     options: MicrophoneOptions,
+    onRelease?: () => void,
   ): Promise<MicrophoneSession> {
     if (options.signal?.aborted) {
       throw new DOMException("microphone capture was aborted", "AbortError");
@@ -132,7 +133,7 @@ export class MicrophoneSession {
     }
 
     let stream: MediaStream | undefined;
-    let session: Session | undefined;
+    let session: TranscriptionSession | undefined;
     let context: AudioContext | undefined;
     try {
       stream = await mediaDevices.getUserMedia({
@@ -178,6 +179,7 @@ export class MicrophoneSession {
         capture,
         sink,
         options,
+        onRelease,
       );
     } catch (cause) {
       stopTracks(stream);
@@ -191,7 +193,7 @@ export class MicrophoneSession {
 
   on<K extends keyof SessionEventMap>(
     type: K,
-    listener: Listener<K>,
+    listener: SessionListener<K>,
   ): () => void {
     return this.#session.on(type, listener);
   }
@@ -238,14 +240,18 @@ export class MicrophoneSession {
   }
 
   async #release(): Promise<void> {
-    this.#abortSignal?.removeEventListener("abort", this.#abort);
-    this.#capture.port.onmessage = null;
-    this.#source.disconnect();
-    this.#capture.disconnect();
-    this.#sink.disconnect();
-    stopTracks(this.#stream);
-    if (this.#context.state !== "closed") {
-      await this.#context.close();
+    try {
+      this.#abortSignal?.removeEventListener("abort", this.#abort);
+      this.#capture.port.onmessage = null;
+      this.#source.disconnect();
+      this.#capture.disconnect();
+      this.#sink.disconnect();
+      stopTracks(this.#stream);
+      if (this.#context.state !== "closed") {
+        await this.#context.close();
+      }
+    } finally {
+      this.#onRelease?.();
     }
   }
 }

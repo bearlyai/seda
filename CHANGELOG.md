@@ -2,6 +2,23 @@
 
 Seda follows semantic versioning. Notable changes are recorded here.
 
+## 0.2.0
+
+- Added `@bearlyai/seda-browser`, a serverless in-browser runtime backed by a
+  dedicated Worker, automatic WebGPU/WASM selection, and pinned Moonshine Tiny
+  model caching.
+- Kept the high-level API to `SedaBrowser.create()`, `microphone()`, live
+  revisions, `stop()`, `cancel()`, and `close()`—no port, token, or audio blobs.
+- Extracted a runtime-neutral `TranscriptionSession` contract so native and
+  browser inference share capture and application code.
+- Added model download/compile readiness progress, abortable initialization,
+  honest buffered-streaming capabilities, and a 30-second utterance bound.
+- Added browser integration coverage across Chromium, Firefox, and WebKit,
+  Chromium microphone lifecycle coverage, and a real Moonshine WASM acoustic
+  test using a checksum-verified speech fixture.
+- Reworked all browser documentation around complete microphone and
+  Shift-to-talk flows, deployment requirements, model behavior, and error UX.
+
 ## 0.1.1
 
 - Added the high-level browser `seda.microphone()` API with permission,

@@ -13,7 +13,7 @@ cargo build -p seda-cli --features test-engine
 pnpm check
 pnpm test
 pnpm build
-pnpm exec playwright install chromium
+pnpm exec playwright install chromium firefox webkit
 pnpm test:browser
 ```
 
@@ -34,8 +34,22 @@ Model catalog changes must pin an immutable or content-verified artifact,
 SHA-256, exact byte size, upstream source, license, languages, and capabilities.
 Include a real-model test result for each changed launch target.
 
-Browser changes must keep the microphone integration test user-level: acquire a
-media stream, capture and resample audio, pass an authenticated CORS boundary,
-stream over WebSocket, observe a live revision, and commit a final transcript.
+Browser changes must keep both supported paths user-level. The in-process lane
+must exercise its Worker/session contract in Chromium, Firefox, and WebKit; the
+Chromium microphone lane must acquire a media stream, capture and resample
+audio, observe a live revision, release tracks, and commit a final transcript.
+Model or runtime changes must also pass the opt-in real Moonshine WASM fixture:
+
+```sh
+SEDA_REAL_BROWSER_MODEL=1 \
+SEDA_REAL_AUDIO=/path/to/speech.wav \
+pnpm exec playwright test \
+  packages/browser/browser-test/runtime.spec.ts \
+  --project chromium \
+  --grep "real Moonshine"
+```
+
+The native-hosted browser lane must still cover authenticated CORS, WebSocket
+audio, a live revision, cleanup, and a final transcript.
 
 By contributing, you agree that your contribution is licensed under Apache-2.0.

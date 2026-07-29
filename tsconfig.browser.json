@@ -7,6 +7,6 @@
   },
   "include": [
     "playwright.config.ts",
-    "packages/client/browser-test/**/*.ts"
+    "packages/*/browser-test/**/*.ts"
   ]
 }

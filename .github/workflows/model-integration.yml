@@ -16,6 +16,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  browser-wasm:
+    name: Browser WASM / Moonshine Tiny
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SEDA_REAL_AUDIO: ${{ github.workspace }}/.seda-ci/fixtures/speech.wav
+      SEDA_REAL_BROWSER_MODEL: "1"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+
+      - name: Install and build browser packages
+        run: |
+          npm install --global pnpm@11.10.0
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          pnpm --filter @bearlyai/seda build
+          pnpm --filter @bearlyai/seda-browser build
+
+      - name: Download and verify speech fixture
+        shell: bash
+        run: |
+          mkdir -p "$(dirname "$SEDA_REAL_AUDIO")"
+          curl --fail --location --silent --show-error \
+            "https://raw.githubusercontent.com/mudler/parakeet.cpp/e747acdaee69b916cef62263ae5f718bda9ff3f3/tests/fixtures/speech.wav" \
+            --output "$SEDA_REAL_AUDIO"
+          node -e "const f=require('node:fs'),c=require('node:crypto');const h=c.createHash('sha256').update(f.readFileSync(process.argv[1])).digest('hex');if(h!==process.argv[2]){console.error(h);process.exit(1)}" \
+            "$SEDA_REAL_AUDIO" \
+            "5fceacff0315d49cb59fcc505bcecf1ed5f2f35c2897b1e65a59f30e5d922150"
+
+      - name: Transcribe through the real browser WASM runtime
+        run: >-
+          pnpm exec playwright test
+          packages/browser/browser-test/runtime.spec.ts
+          --project chromium
+          --grep "real Moonshine"
+
   compact-model:
     name: Compact model / ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
