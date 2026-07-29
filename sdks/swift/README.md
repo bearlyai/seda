@@ -1,6 +1,6 @@
 # Seda for Swift
 
-Typed async Swift 6 client for a locally running Seda sidecar on macOS 13+ and
+Typed async Swift 5.10+ client for a locally running Seda sidecar on macOS 13+ and
 iOS 16+.
 
 ## Install

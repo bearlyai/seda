@@ -1,5 +1,5 @@
 import Foundation
-import Testing
+import XCTest
 @testable import Seda
 
 private final class MockURLProtocol: URLProtocol, @unchecked Sendable {
@@ -57,10 +57,8 @@ private final class FakeWebSocket: SedaWebSocket, @unchecked Sendable {
     }
 }
 
-@Suite(.serialized)
-struct SedaTests {
-    @Test
-    func modelIdentityAndStreamLanguageAreIndependent() async throws {
+final class SedaTests: XCTestCase {
+    func testModelIdentityAndStreamLanguageAreIndependent() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockURLProtocol.self]
         let session = URLSession(configuration: configuration)
@@ -68,7 +66,10 @@ struct SedaTests {
         nonisolated(unsafe) var requestedLanguage: String?
 
         MockURLProtocol.handler = { request in
-            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token")
+            XCTAssertEqual(
+                request.value(forHTTPHeaderField: "Authorization"),
+                "Bearer token"
+            )
             switch request.url!.path {
             case "/v1/capabilities":
                 return (
@@ -94,7 +95,7 @@ struct SedaTests {
                 )
             case "/v1/sessions":
                 let body = try requestBody(request)
-                let value = try #require(
+                let value = try XCTUnwrap(
                     JSONSerialization.jsonObject(with: body) as? [String: Any]
                 )
                 requestedLanguage = value["language"] as? String
@@ -111,7 +112,7 @@ struct SedaTests {
                     )
                 )
             default:
-                Issue.record("Unexpected request: \(request.url!.path)")
+                XCTFail("Unexpected request: \(request.url!.path)")
                 return (404, Data())
             }
         }
@@ -123,8 +124,8 @@ struct SedaTests {
             socketFactory: { _ in socket }
         )
         let capabilities = try await seda.capabilities()
-        #expect(capabilities.resolvedModel.id == "fixture/streaming")
-        #expect(capabilities.language.mode == "prompted")
+        XCTAssertEqual(capabilities.resolvedModel.id, "fixture/streaming")
+        XCTAssertEqual(capabilities.language.mode, "prompted")
 
         let live = try await seda.listen(language: "de-DE")
         try await live.write(Data([0, 0, 1, 0]))
@@ -133,14 +134,13 @@ struct SedaTests {
             partial = update.text
         }
 
-        #expect(requestedLanguage == "de-DE")
-        #expect(partial == "hallo")
-        #expect(transcript.text == "hallo welt")
-        #expect(socket.closed)
+        XCTAssertEqual(requestedLanguage, "de-DE")
+        XCTAssertEqual(partial, "hallo")
+        XCTAssertEqual(transcript.text, "hallo welt")
+        XCTAssertTrue(socket.closed)
     }
 
-    @Test
-    func fixtureSidecarIntegration() async throws {
+    func testFixtureSidecarIntegration() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard
             let baseURL = environment["SEDA_TEST_BASE_URL"].flatMap(URL.init),
@@ -150,21 +150,21 @@ struct SedaTests {
         }
         let seda = try await Seda.connect(baseURL: baseURL, token: token)
         let capabilities = try await seda.capabilities()
-        #expect(capabilities.resolvedModel.id == "fixture/streaming-en")
+        XCTAssertEqual(capabilities.resolvedModel.id, "fixture/streaming-en")
 
         let complete = try await seda.transcribe(
             wav: wavFixture(samples: 320),
             language: "en"
         )
-        #expect(complete.text == "hello world")
+        XCTAssertEqual(complete.text, "hello world")
 
         let live = try await seda.listen(language: "en")
         try await live.write(Data(repeating: 0, count: 320))
         try await live.write(Data(repeating: 0, count: 320))
         nonisolated(unsafe) var updates = 0
         let transcript = try await live.commit { _ in updates += 1 }
-        #expect(transcript.text == "hello world")
-        #expect(updates >= 2)
+        XCTAssertEqual(transcript.text, "hello world")
+        XCTAssertGreaterThanOrEqual(updates, 2)
     }
 }
 
@@ -172,7 +172,7 @@ private func requestBody(_ request: URLRequest) throws -> Data {
     if let body = request.httpBody {
         return body
     }
-    let stream = try #require(request.httpBodyStream)
+    let stream = try XCTUnwrap(request.httpBodyStream)
     stream.open()
     defer { stream.close() }
     var data = Data()
