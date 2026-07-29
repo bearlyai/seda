@@ -41,6 +41,12 @@ wasmBackend.wasmPaths = {
 };
 
 worker.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
+  // DedicatedWorker messages normally have an empty origin because the port
+  // is private to its creator. If a browser supplies one, accept only the
+  // worker's own origin.
+  if (event.origin !== "" && event.origin !== worker.location.origin) {
+    return;
+  }
   const request = event.data;
   inferenceChain = inferenceChain.then(
     () => handleRequest(request),

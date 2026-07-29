@@ -155,7 +155,7 @@ test("transcribes with the real Moonshine WASM model", async ({
   const browserErrors = collectErrors(page);
   const runtimeCdnRequests: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("cdn.jsdelivr.net")) {
+    if (new URL(request.url()).hostname === "cdn.jsdelivr.net") {
       runtimeCdnRequests.push(request.url());
     }
   });
