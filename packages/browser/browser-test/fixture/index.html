@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seda Browser integration</title>
+  </head>
+  <body>
+    <button id="start" disabled>Start listening</button>
+    <button id="stop" disabled>Stop listening</button>
+    <button id="fixture" disabled>Transcribe fixture</button>
+    <p data-testid="state">Loading model</p>
+    <p data-testid="runtime"></p>
+    <p data-testid="progress"></p>
+    <p data-testid="live"></p>
+    <p data-testid="final"></p>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

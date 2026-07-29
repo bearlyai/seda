@@ -1,6 +1,6 @@
 # Platform plan
 
-## v0.1
+## v0.2
 
 ### macOS Apple Silicon
 
@@ -42,27 +42,37 @@ compositors, which is another reason they remain in the host application.
 
 ## Browser
 
-The `@bearlyai/seda` client has a high-level `microphone()` API today. It uses
-`getUserMedia` and AudioWorklet, resamples to 16 kHz mono PCM, streams live
-revisions, and releases capture on `stop()` or `cancel()`. A Chromium
-integration test covers the entire browser-to-daemon flow on every pull
-request.
+`@bearlyai/seda-browser` runs Moonshine Tiny in a dedicated Worker. It prefers
+WebGPU and automatically falls back to WASM. The model is downloaded from a
+pinned immutable revision and stored in the browser Cache API. No companion,
+loopback connection, or token is required.
 
-The page must be a secure context, its exact origin must be allowed by the
-daemon, and an app launcher must privately hand it the loopback address and
-ephemeral token. This does not make an arbitrary public page capable of
-silently installing or launching a native daemon.
+The high-level `microphone()` API uses `getUserMedia` and AudioWorklet,
+resamples to 16 kHz mono PCM, emits buffered live revisions, and releases
+capture on `stop()` or `cancel()`.
 
-An in-browser WASM host is planned as a separate adapter. It will use a worker,
-browser-native model storage, and the same session semantics.
+The session/Worker contract is integration-tested in current Playwright
+Chromium, Firefox, and WebKit. The complete fake-device microphone flow and
+real Moonshine WASM recognition are tested in Chromium. WebGPU is implemented
+as an acceleration tier but is not claimed as CI-validated on hosted GPU
+hardware.
+
+The browser tier is English-only and limited to 30-second utterances. Mobile
+browsers are not yet a supported launch target because low-memory process
+eviction and sustained inference need device testing.
+
+`@bearlyai/seda` remains available for a browser or Electron renderer connected
+to a native host. That route provides true-streaming and multilingual Parakeet
+profiles but requires an app launcher to hand the trusted page a private
+loopback address and token.
 
 ## Later
 
 - macOS Intel release and CI
 - Linux arm64 and Windows arm64
 - iOS and Android bindings
-- WASM runtime
-- optional Moonshine and sherpa-onnx adapters
+- additional browser language/model tiers
+- optional native Moonshine and sherpa-onnx adapters
 - measured GPU backends on Windows/Linux
 
 “Supported” means a published binary plus hermetic integration coverage and

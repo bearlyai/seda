@@ -110,9 +110,10 @@ jobs:
         shell: bash
         run: |
           version="${GITHUB_REF_NAME#v}"
-          node -e "for(const file of ['packages/client/package.json','packages/node/package.json']){const p=require('./'+file);if(p.version!==process.argv[1]){throw new Error(file+' is '+p.version+', tag is '+process.argv[1])}}" "$version"
+          node -e "for(const file of ['packages/client/package.json','packages/browser/package.json','packages/node/package.json']){const p=require('./'+file);if(p.version!==process.argv[1]){throw new Error(file+' is '+p.version+', tag is '+process.argv[1])}}" "$version"
           mkdir -p dist
           pnpm --filter @bearlyai/seda pack --pack-destination "$PWD/dist"
+          pnpm --filter @bearlyai/seda-browser pack --pack-destination "$PWD/dist"
           pnpm --filter @bearlyai/seda-node pack --pack-destination "$PWD/dist"
 
       - name: Upload package artifacts

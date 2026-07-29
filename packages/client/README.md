@@ -9,7 +9,7 @@ Until npm trusted publishing is configured, install the package attached to the
 GitHub release:
 
 ```sh
-pnpm add https://github.com/bearlyai/seda/releases/download/v0.1.1/bearlyai-seda-0.1.1.tgz
+pnpm add https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-0.2.0.tgz
 ```
 
 Start the native companion with your exact page origin:
@@ -70,6 +70,10 @@ The page must be a secure context, and `microphone()` should be called from a
 user gesture. See the repository's
 [browser guide](https://github.com/bearlyai/seda/blob/main/docs/browser.md) for
 complete push-to-talk, Shift-key, Electron, and connection-handoff examples.
+
+For a website that must work without a local companion, use
+`@bearlyai/seda-browser`. It exposes the same `microphone()` behavior with a
+Worker-hosted WebGPU/WASM model and needs no address or token.
 
 ## Advanced: provide your own PCM
 

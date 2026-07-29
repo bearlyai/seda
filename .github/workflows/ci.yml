@@ -93,12 +93,13 @@ jobs:
       - name: Install dependencies
         run: |
           pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright install --with-deps chromium firefox webkit
 
-      - name: Build browser client and fixture sidecar
+      - name: Build browser packages and fixture sidecar
         run: |
           pnpm --filter @bearlyai/seda build
+          pnpm --filter @bearlyai/seda-browser build
           cargo build --locked -p seda-cli --features test-engine
 
-      - name: Test browser microphone flow
+      - name: Test browser runtimes and microphone flows
         run: pnpm test:browser

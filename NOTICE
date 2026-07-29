@@ -14,6 +14,16 @@ distribution and are governed by their own terms:
   https://huggingface.co/nvidia/parakeet_realtime_eou_120m-v1
 - Nemotron 3.5 ASR Streaming 0.6B base model: OpenMDW 1.1
   https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b
+- Moonshine Tiny English model and ONNX distribution: MIT
+  https://huggingface.co/onnx-community/moonshine-tiny-ONNX
+- Transformers.js: Apache-2.0
+  https://github.com/huggingface/transformers.js
+- Hugging Face Jinja: MIT
+  https://github.com/huggingface/huggingface.js
+- ONNX Runtime Web: MIT
+  https://github.com/microsoft/onnxruntime
 
-Exact artifacts and checksums are recorded in models/catalog.json. Downstream
-distributors are responsible for reviewing and preserving applicable notices.
+Native artifacts and checksums are recorded in models/catalog.json; the browser
+model is pinned to an immutable upstream revision in
+packages/browser/src/models.ts. Downstream distributors are responsible for
+reviewing and preserving applicable notices.

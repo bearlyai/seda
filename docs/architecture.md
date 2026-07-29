@@ -2,20 +2,19 @@
 
 ## Boundary
 
-Seda is a speech engine service, not a universal dictation UI.
+Seda is a speech engine toolkit, not a universal dictation UI.
 
 ```text
 host app
   ├─ global shortcut and focused-app policy
-  ├─ browser microphone helper or application-owned audio
+  ├─ microphone helper or application-owned audio
   ├─ text preview and focused-app insertion
-  └─ Seda host
-       ├─ model catalog + verified installer
-       ├─ native recognition adapter
-       └─ authenticated HTTP/WebSocket protocol
+  └─ Seda runtime
+       ├─ browser: Worker + cached Moonshine + WebGPU/WASM
+       └─ native: verified Parakeet + authenticated loopback protocol
 ```
 
-The native service never grabs a device. The browser client requests microphone
+Neither runtime grabs a device by itself. The shared microphone helper requests
 permission only when the application calls `seda.microphone()` from its own
 interaction, then owns capture, resampling, and cleanup. Other hosts can supply
 PCM through the lower-level session. Electron, native applets, accessibility
@@ -27,11 +26,26 @@ tools, web pages, and headless services still control their own UX and policy.
 - `seda-core`: paths, embedded catalog, installer, and engine/session traits.
 - `seda-parakeet`: safe Rust wrapper around parakeet.cpp C ABI v5.
 - `seda-cli`: CLI, authenticated Axum service, session registry, actor workers.
-- `@bearlyai/seda`: typed HTTP/WebSocket client plus browser microphone path.
+- `@bearlyai/seda`: runtime-neutral session types, native HTTP/WebSocket client,
+  and browser microphone capture.
+- `@bearlyai/seda-browser`: in-process Worker host for Moonshine through
+  Transformers.js, WebGPU, and WASM.
 - `@bearlyai/seda-node`: sidecar installer and lifecycle manager.
 
-Rust crates are internal implementation units for v0.1 and are not published to
+Rust crates are internal implementation units for v0.2 and are not published to
 crates.io. The binary and wire protocol are the native compatibility boundary.
+
+## Browser process model
+
+`SedaBrowser.create()` creates one module Worker and loads one pinned model. The
+Worker owns all Transformers.js and ONNX execution, serializes inference, and
+reports download/compile/readiness progress. The page owns only session state,
+audio capture, and transcript events.
+
+Moonshine is utterance-based, so a browser session periodically decodes the
+current rolling utterance and emits a replacement revision. Commit performs one
+final decode. Seda reports this as buffered streaming. The 30-second model limit
+also bounds per-session memory.
 
 ## Process model
 
@@ -61,6 +75,11 @@ Model weights and native runtimes are never committed to the repository or
 GitHub release. `SEDA_HOME` can redirect all managed data for application
 packaging, tests, or portable installations.
 
+The browser host requests the immutable Moonshine model revision recorded in
+`packages/browser/src/models.ts`. Transformers.js stores fetched files in the
+browser Cache API. Cache eviction can trigger another download; `create()`
+remains the single readiness boundary either way.
+
 ## Security model
 
 The default server binds `127.0.0.1:0`, emits a random 256-bit-equivalent token,
@@ -73,6 +92,10 @@ Browser `Origin` is deny-by-default for both HTTP CORS and WebSocket upgrades.
 Electron should keep lifecycle control in the main process and expose only
 `browserConnection()` through a narrow bridge to a trusted local renderer.
 
+The in-browser runtime has no local server or credential. Its network boundary
+is the first model download from the pinned Hugging Face revision. Audio is
+passed only between the page and its Worker.
+
 ## Adding an engine
 
 Implement `RecognitionEngine` and `RecognitionSession`:
@@ -83,16 +106,18 @@ Implement `RecognitionEngine` and `RecognitionSession`:
 - incremental `feed`;
 - terminal `commit`.
 
-Adapters emit text deltas, words, EOU, and backchannel events. The server owns
-wire revisions, completion, limits, and errors. This keeps a Moonshine,
-sherpa-onnx, OS-native, remote, or WASM backend from changing application code.
+Native adapters emit text deltas, words, EOU, and backchannel events. The server
+owns wire revisions, completion, limits, and errors. In-process adapters
+implement the exported `TranscriptionSession` contract directly. Capability
+negotiation keeps Moonshine, sherpa-onnx, OS-native, remote, or WASM backends
+from changing application code or overstating their behavior.
 
-## Deliberate v0.1 constraints
+## Deliberate v0.2 constraints
 
 - One resident model per process.
 - One language choice per session.
 - PCM audio only for live sessions.
 - No daemon-owned microphone, global shortcut, or text injection.
 - No second-pass refiner until it has measured quality and latency behavior.
-- No WASM runtime until model caching, threading, and streaming semantics are
-  consistent enough to keep the API honest.
+- Browser Moonshine Tiny is English-only, buffered, and capped at 30 seconds.
+- Native Parakeet remains the true-streaming and multilingual tier.

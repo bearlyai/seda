@@ -3,22 +3,23 @@ import type {
   ErrorBody,
   ServerEvent,
   SessionEventMap,
+  SessionListener,
   Transcript,
   TranscriptUpdate,
+  TranscriptionSession,
   WebSocketFactory,
   WebSocketLike,
 } from "./types.js";
 
-type Listener<K extends keyof SessionEventMap> = (
-  event: SessionEventMap[K],
-) => void;
-
-export class Session {
+export class Session implements TranscriptionSession {
   readonly id: string;
   readonly events: AsyncIterable<ServerEvent>;
 
   readonly #socket: WebSocketLike;
-  readonly #listeners = new Map<keyof SessionEventMap, Set<Listener<never>>>();
+  readonly #listeners = new Map<
+    keyof SessionEventMap,
+    Set<SessionListener<never>>
+  >();
   readonly #queue: ServerEvent[] = [];
   readonly #waiters: Array<(value: IteratorResult<ServerEvent>) => void> = [];
   readonly #completed: Promise<Transcript>;
@@ -80,14 +81,14 @@ export class Session {
 
   on<K extends keyof SessionEventMap>(
     type: K,
-    listener: Listener<K>,
+    listener: SessionListener<K>,
   ): () => void {
     const listeners =
-      this.#listeners.get(type) ?? new Set<Listener<never>>();
-    listeners.add(listener as Listener<never>);
+      this.#listeners.get(type) ?? new Set<SessionListener<never>>();
+    listeners.add(listener as SessionListener<never>);
     this.#listeners.set(type, listeners);
     return () => {
-      listeners.delete(listener as Listener<never>);
+      listeners.delete(listener as SessionListener<never>);
     };
   }
 
@@ -183,7 +184,7 @@ export class Session {
     event: SessionEventMap[K],
   ): void {
     for (const listener of this.#listeners.get(type) ?? []) {
-      (listener as Listener<K>)(event);
+      (listener as SessionListener<K>)(event);
     }
   }
 

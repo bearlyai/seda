@@ -63,6 +63,30 @@ export interface SessionEventMap {
   error: import("./error.js").SedaError;
 }
 
+export type SessionListener<K extends keyof SessionEventMap> = (
+  event: SessionEventMap[K],
+) => void;
+
+/**
+ * Runtime-neutral live transcription contract.
+ *
+ * Native, browser/WASM, and future platform hosts implement this same shape,
+ * which lets `MicrophoneSession` own capture without knowing where inference
+ * runs.
+ */
+export interface TranscriptionSession {
+  readonly id: string;
+  readonly events: AsyncIterable<ServerEvent>;
+
+  on<K extends keyof SessionEventMap>(
+    type: K,
+    listener: SessionListener<K>,
+  ): () => void;
+  write(audio: Int16Array | ArrayBuffer | ArrayBufferView): void;
+  commit(): Promise<Transcript>;
+  cancel(): Promise<void>;
+}
+
 export interface SessionCreated {
   id: string;
   websocketPath: string;
