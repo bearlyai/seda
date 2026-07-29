@@ -1,6 +1,13 @@
 packages:
   - "packages/*"
 
+# Quarantine newly published registry packages for seven full days. Strict mode
+# fails instead of silently adding an exception, and untrusted lockfiles are
+# rechecked so frozen installs cannot bypass the policy.
+minimumReleaseAge: 10080
+minimumReleaseAgeStrict: true
+trustLockfile: false
+
 overrides:
   sharp: "0.35.3"
 

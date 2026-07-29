@@ -17,6 +17,12 @@ pnpm exec playwright install chromium firefox webkit
 pnpm test:browser
 ```
 
+Use the pnpm version pinned in `package.json`. Dependency releases must be at
+least seven days old; the workspace rejects younger direct and transitive
+versions, including during frozen-lockfile CI installs. Do not add a
+`minimumReleaseAgeExclude` entry to make an update pass. Wait for the quarantine
+window, or open a narrowly scoped security-policy change for an emergency fix.
+
 Before opening a pull request, also run:
 
 ```sh

@@ -14,6 +14,23 @@ and impact.
 We will acknowledge a complete report within three business days and coordinate
 disclosure after a fix is available.
 
+## Dependency quarantine
+
+JavaScript registry releases are quarantined for seven days. Seda sets
+`minimumReleaseAge: 10080` with strict enforcement in `pnpm-workspace.yaml` and
+does not maintain a `minimumReleaseAgeExclude` list. The pinned pnpm version
+also revalidates the complete lockfile during frozen installs because
+`trustLockfile` remains disabled. A dependency update therefore fails before
+package code is fetched when any direct or transitive registry version is less
+than seven days old. CI also runs `pnpm run check:dependency-policy`, which
+fails if the window, strict mode, lockfile verification, or empty exclusion
+policy changes.
+
+Do not bypass this policy by adding an age exclusion, enabling `trustLockfile`,
+or using a different package manager. If an emergency security upgrade cannot
+wait seven days, it requires an explicit, reviewed change to this policy that
+names the package, version, reason, and removal date.
+
 ## Trust boundaries
 
 Seda downloads executable native runtimes and model weights. The embedded

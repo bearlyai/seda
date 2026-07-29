@@ -8,12 +8,13 @@
   },
   "scripts": {
     "build": "pnpm --filter @bearlyai/seda build && pnpm --filter @bearlyai/seda-browser build && pnpm --filter @bearlyai/seda-node build",
-    "check": "pnpm --filter @bearlyai/seda check && pnpm --filter @bearlyai/seda build && pnpm --filter @bearlyai/seda-browser check && pnpm --filter @bearlyai/seda-browser build && pnpm --filter @bearlyai/seda-node check && tsc -p tsconfig.browser.json",
+    "check": "pnpm run check:dependency-policy && pnpm --filter @bearlyai/seda check && pnpm --filter @bearlyai/seda build && pnpm --filter @bearlyai/seda-browser check && pnpm --filter @bearlyai/seda-browser build && pnpm --filter @bearlyai/seda-node check && tsc -p tsconfig.browser.json",
+    "check:dependency-policy": "pnpm config list --json | node scripts/check-dependency-policy.mjs",
     "test": "pnpm --recursive test",
     "test:browser": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "1.62.0",
+    "@playwright/test": "1.61.1",
     "@types/node": "24.13.3",
     "typescript": "5.9.3",
     "vite": "7.3.6"
