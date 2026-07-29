@@ -3,6 +3,13 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "packages",
   testMatch: "**/browser-test/**/*.spec.ts",
+  webServer: process.env["SEDA_DEMO_URL"]
+    ? undefined
+    : {
+        command: "pnpm exec vite --host 127.0.0.1 --port 4173",
+        url: "http://127.0.0.1:4173/examples/browser-demo/",
+        reuseExistingServer: !process.env["CI"],
+      },
   fullyParallel: false,
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] ? 1 : 0,
