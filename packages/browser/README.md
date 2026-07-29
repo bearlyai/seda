@@ -3,6 +3,8 @@
 Private speech recognition that runs inside the browser. No daemon, loopback
 server, token, account, or uploaded audio.
 
+**[Try the live microphone demo →](https://bearlyai.github.io/seda/)**
+
 ## Install
 
 Until npm trusted publishing is configured, install both package tarballs from

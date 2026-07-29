@@ -99,6 +99,7 @@ jobs:
         run: |
           pnpm --filter @bearlyai/seda build
           pnpm --filter @bearlyai/seda-browser build
+          pnpm exec vite build examples/browser-demo --base /seda/ --outDir ../../dist/pages --emptyOutDir
           cargo build --locked -p seda-cli --features test-engine
 
       - name: Test browser runtimes and microphone flows

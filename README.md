@@ -7,6 +7,8 @@ desktop, Node, and applet developers a complete microphone-to-text path.
 Browsers run privately in-process with WebGPU or WASM. Native applications can
 install Parakeet for true streaming and multilingual models.
 
+**[Try Seda in your browser →](https://bearlyai.github.io/seda/)**
+
 ```ts
 import { SedaBrowser } from "@bearlyai/seda-browser";
 

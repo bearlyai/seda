@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "pnpm --filter @bearlyai/seda build && pnpm --filter @bearlyai/seda-browser build && pnpm --filter @bearlyai/seda-node build",
+    "build:pages": "pnpm build && vite build examples/browser-demo --base /seda/ --outDir ../../dist/pages --emptyOutDir",
     "check": "pnpm run check:dependency-policy && pnpm --filter @bearlyai/seda check && pnpm --filter @bearlyai/seda build && pnpm --filter @bearlyai/seda-browser check && pnpm --filter @bearlyai/seda-browser build && pnpm --filter @bearlyai/seda-node check && tsc -p tsconfig.browser.json",
     "check:dependency-policy": "pnpm config list --json | node scripts/check-dependency-policy.mjs",
     "test": "pnpm --recursive test",

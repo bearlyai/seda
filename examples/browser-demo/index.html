@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Try Seda private, in-browser speech recognition with your microphone."
+    />
+    <title>Seda — private speech in your browser</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        background: #0c0d0d;
+        color: #f5f4ef;
+        font-synthesis: none;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        background:
+          radial-gradient(circle at 15% 0%, #2b4e434d, transparent 34rem),
+          radial-gradient(circle at 95% 15%, #63492f40, transparent 32rem),
+          #0c0d0d;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .shell {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 68px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: inherit;
+        font-weight: 740;
+        letter-spacing: -0.02em;
+        text-decoration: none;
+      }
+
+      .mark {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border: 1px solid #d7c5a357;
+        border-radius: 12px;
+        background: #d7c5a314;
+        color: #ead8b4;
+        font-family: Georgia, serif;
+        font-size: 22px;
+      }
+
+      .github {
+        color: #bdbdb7;
+        font-size: 14px;
+        text-underline-offset: 4px;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+        gap: 64px;
+        align-items: start;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 22px;
+        color: #b8d9cc;
+        font-size: 12px;
+        font-weight: 760;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #72d4ad;
+        box-shadow: 0 0 0 5px #72d4ad1c;
+      }
+
+      h1 {
+        max-width: 730px;
+        margin: 0;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(52px, 7.4vw, 94px);
+        font-weight: 400;
+        letter-spacing: -0.055em;
+        line-height: 0.92;
+      }
+
+      h1 em {
+        color: #d8c29c;
+        font-weight: 400;
+      }
+
+      .lede {
+        max-width: 620px;
+        margin: 28px 0 0;
+        color: #aaa9a3;
+        font-size: clamp(16px, 2vw, 19px);
+        line-height: 1.65;
+      }
+
+      .privacy {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 30px;
+      }
+
+      .pill {
+        padding: 8px 11px;
+        border: 1px solid #ffffff12;
+        border-radius: 999px;
+        background: #ffffff08;
+        color: #c7c7c1;
+        font-size: 12px;
+      }
+
+      .card {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #ffffff18;
+        border-radius: 26px;
+        background: #151716d9;
+        box-shadow: 0 28px 80px #00000066;
+        backdrop-filter: blur(18px);
+      }
+
+      .card::before {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #ffffff4d, transparent);
+        content: "";
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 20px 22px;
+        border-bottom: 1px solid #ffffff12;
+      }
+
+      .card-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 720;
+        letter-spacing: 0.01em;
+      }
+
+      .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: #9a9a94;
+        font-size: 12px;
+      }
+
+      .state-light {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #777872;
+      }
+
+      .state[data-tone="ready"] {
+        color: #9ed7c0;
+      }
+
+      .state[data-tone="ready"] .state-light {
+        background: #62c99f;
+        box-shadow: 0 0 12px #62c99f;
+      }
+
+      .state[data-tone="recording"] {
+        color: #f1a99d;
+      }
+
+      .state[data-tone="recording"] .state-light {
+        background: #ee7665;
+        box-shadow: 0 0 14px #ee7665;
+      }
+
+      .demo {
+        padding: 22px;
+      }
+
+      .install {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 18px;
+        padding: 15px;
+        border: 1px solid #ffffff10;
+        border-radius: 16px;
+        background: #ffffff05;
+      }
+
+      .install-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .install-copy strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+      }
+
+      .install-copy span {
+        color: #8f908a;
+        font-size: 11px;
+      }
+
+      .load {
+        flex: none;
+        padding: 10px 14px;
+        border: 1px solid #d8c29c4f;
+        border-radius: 11px;
+        background: #d8c29c;
+        color: #1d1b17;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 780;
+      }
+
+      .load:hover {
+        background: #ead6b3;
+      }
+
+      .load:disabled {
+        cursor: wait;
+        opacity: 0.56;
+      }
+
+      .progress {
+        height: 3px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #ffffff12;
+      }
+
+      .progress-fill {
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #72d4ad, #d8c29c);
+        transition: width 180ms ease;
+      }
+
+      .transcript {
+        min-height: 164px;
+        padding: 20px;
+        border: 1px solid #ffffff10;
+        border-radius: 18px;
+        background: #0d0f0ee6;
+      }
+
+      .transcript-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 19px;
+        color: #70716c;
+        font-size: 10px;
+        font-weight: 740;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .transcript-text {
+        margin: 0;
+        color: #f0eee8;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 24px;
+        line-height: 1.4;
+      }
+
+      .transcript-text[data-empty="true"] {
+        color: #666762;
+      }
+
+      .unstable {
+        color: #b9b8b1;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .talk {
+        min-height: 58px;
+        border: 1px solid #ffffff19;
+        border-radius: 15px;
+        background: #f0eee8;
+        color: #171816;
+        cursor: pointer;
+        font-weight: 800;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .talk:hover:not(:disabled) {
+        background: #fffdf7;
+      }
+
+      .talk[data-recording="true"] {
+        border-color: #eb8e7d;
+        background: #d96c5b;
+        color: #fff9f7;
+      }
+
+      .talk:disabled {
+        cursor: not-allowed;
+        opacity: 0.32;
+      }
+
+      .cancel {
+        width: 58px;
+        border: 1px solid #ffffff16;
+        border-radius: 15px;
+        background: #ffffff08;
+        color: #aaa9a3;
+        cursor: pointer;
+        font-size: 18px;
+      }
+
+      .cancel:disabled {
+        cursor: not-allowed;
+        opacity: 0.28;
+      }
+
+      .hint {
+        margin: 13px 2px 0;
+        color: #73746e;
+        font-size: 11px;
+        line-height: 1.5;
+        text-align: center;
+      }
+
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        margin-top: 22px;
+        overflow: hidden;
+        border: 1px solid #ffffff10;
+        border-radius: 15px;
+        background: #ffffff10;
+      }
+
+      .meta-item {
+        padding: 12px;
+        background: #121413;
+      }
+
+      .meta-label {
+        display: block;
+        margin-bottom: 5px;
+        color: #686964;
+        font-size: 9px;
+        font-weight: 760;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .meta-value {
+        display: block;
+        overflow: hidden;
+        color: #b8b8b2;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .error {
+        margin: 14px 0 0;
+        padding: 12px 14px;
+        border: 1px solid #e7746238;
+        border-radius: 12px;
+        background: #e7746212;
+        color: #f0a497;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .error[hidden] {
+        display: none;
+      }
+
+      .fine-print {
+        max-width: 720px;
+        margin: 68px 0 0;
+        color: #6f706b;
+        font-size: 12px;
+        line-height: 1.65;
+      }
+
+      @media (max-width: 850px) {
+        .topbar {
+          margin-bottom: 46px;
+        }
+
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 48px;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .shell {
+          width: min(100% - 20px, 1120px);
+          padding-top: 18px;
+        }
+
+        .github {
+          font-size: 0;
+        }
+
+        .github::after {
+          font-size: 13px;
+          content: "GitHub";
+        }
+
+        .card-header,
+        .demo {
+          padding-right: 16px;
+          padding-left: 16px;
+        }
+
+        .install-row {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .load {
+          width: 100%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <nav class="topbar" aria-label="Primary">
+        <a class="brand" href="https://github.com/bearlyai/seda">
+          <span class="mark" aria-hidden="true">ص</span>
+          <span>Seda</span>
+        </a>
+        <a class="github" href="https://github.com/bearlyai/seda">
+          View source on GitHub ↗
+        </a>
+      </nav>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow"><span class="dot"></span> Private by design</p>
+          <h1>Your voice.<br /><em>Your browser.</em></h1>
+          <p class="lede">
+            Hold a button or the Shift key and speak. Seda transcribes locally
+            with WebGPU or WASM—no account, no server, and no uploaded audio.
+          </p>
+          <div class="privacy" aria-label="Privacy and runtime properties">
+            <span class="pill">Audio stays local</span>
+            <span class="pill">Open source</span>
+            <span class="pill">WebGPU + WASM</span>
+            <span class="pill">~55 MB model</span>
+          </div>
+          <p class="fine-print">
+            The first load downloads and caches the pinned English Moonshine
+            Tiny model. Live text is emitted as revisable buffered
+            transcriptions; releasing push-to-talk produces the stable result.
+            One utterance can be up to 30 seconds.
+          </p>
+        </div>
+
+        <section class="card" aria-labelledby="demo-title">
+          <header class="card-header">
+            <h2 class="card-title" id="demo-title">Live transcription</h2>
+            <span class="state" id="state" data-tone="idle">
+              <span class="state-light"></span>
+              <span id="state-text">Not loaded</span>
+            </span>
+          </header>
+
+          <div class="demo">
+            <div class="install">
+              <div class="install-row">
+                <div class="install-copy">
+                  <strong id="install-title">Install speech model</strong>
+                  <span id="install-detail">Runs privately in this tab</span>
+                </div>
+                <button class="load" id="load" type="button">
+                  Load Seda
+                </button>
+              </div>
+              <div
+                class="progress"
+                id="progress"
+                role="progressbar"
+                aria-label="Model installation"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <div class="progress-fill" id="progress-fill"></div>
+              </div>
+            </div>
+
+            <div class="transcript" aria-live="polite">
+              <div class="transcript-label">
+                <span>Transcript</span>
+                <span id="duration">Ready when you are</span>
+              </div>
+              <p class="transcript-text" id="transcript" data-empty="true">
+                Your words will appear here.
+              </p>
+            </div>
+
+            <div class="controls">
+              <button
+                class="talk"
+                id="talk"
+                type="button"
+                disabled
+                aria-keyshortcuts="Shift"
+              >
+                Hold to talk
+              </button>
+              <button
+                class="cancel"
+                id="cancel"
+                type="button"
+                disabled
+                aria-label="Cancel recording"
+                title="Cancel recording"
+              >
+                ×
+              </button>
+            </div>
+            <p class="hint">
+              Hold the button or either <strong>Shift</strong> key. Release to
+              finish. Press Escape to cancel.
+            </p>
+
+            <p class="error" id="error" role="alert" hidden></p>
+
+            <div class="meta" aria-label="Runtime information">
+              <div class="meta-item">
+                <span class="meta-label">Runtime</span>
+                <span class="meta-value" id="runtime">—</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Model</span>
+                <span class="meta-value" id="model">Moonshine Tiny</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Mode</span>
+                <span class="meta-value" id="mode">Buffered</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module">
+      import { SedaBrowser } from "../../packages/browser/dist/index.js";
+
+      const elements = {
+        cancel: document.querySelector("#cancel"),
+        duration: document.querySelector("#duration"),
+        error: document.querySelector("#error"),
+        installDetail: document.querySelector("#install-detail"),
+        installTitle: document.querySelector("#install-title"),
+        load: document.querySelector("#load"),
+        mode: document.querySelector("#mode"),
+        model: document.querySelector("#model"),
+        progress: document.querySelector("#progress"),
+        progressFill: document.querySelector("#progress-fill"),
+        runtime: document.querySelector("#runtime"),
+        state: document.querySelector("#state"),
+        stateText: document.querySelector("#state-text"),
+        talk: document.querySelector("#talk"),
+        transcript: document.querySelector("#transcript"),
+      };
+
+      let seda;
+      let microphonePromise;
+      let recordingRequested = false;
+      let finishing = false;
+      let startedAt = 0;
+      let timer;
+
+      function setState(label, tone = "idle") {
+        elements.state.dataset.tone = tone;
+        elements.stateText.textContent = label;
+      }
+
+      function showError(error) {
+        const message =
+          error instanceof Error ? error.message : "Something went wrong.";
+        elements.error.textContent = message;
+        elements.error.hidden = false;
+        setState("Needs attention");
+      }
+
+      function clearError() {
+        elements.error.hidden = true;
+        elements.error.textContent = "";
+      }
+
+      function renderTranscript(update) {
+        const hasText = update.text.trim().length > 0;
+        elements.transcript.dataset.empty = String(!hasText);
+        if (!hasText) {
+          elements.transcript.textContent = "Listening…";
+          return;
+        }
+
+        elements.transcript.replaceChildren(
+          document.createTextNode(update.stableText),
+          Object.assign(document.createElement("span"), {
+            className: "unstable",
+            textContent: update.unstableText,
+          }),
+        );
+      }
+
+      function startTimer() {
+        startedAt = performance.now();
+        clearInterval(timer);
+        timer = setInterval(() => {
+          const seconds = (performance.now() - startedAt) / 1_000;
+          elements.duration.textContent = `${seconds.toFixed(1)} seconds`;
+        }, 100);
+      }
+
+      function stopTimer(label) {
+        clearInterval(timer);
+        timer = undefined;
+        elements.duration.textContent = label;
+      }
+
+      async function loadSeda() {
+        if (seda) return;
+        clearError();
+        elements.load.disabled = true;
+        elements.load.textContent = "Loading…";
+        setState("Loading model");
+
+        try {
+          seda = await SedaBrowser.create({
+            model: "moonshine-tiny",
+            device: "auto",
+            onProgress(progress) {
+              const percent = Math.max(
+                0,
+                Math.min(100, progress.percent ?? 0),
+              );
+              elements.progressFill.style.width = `${percent}%`;
+              elements.progress.setAttribute(
+                "aria-valuenow",
+                String(Math.round(percent)),
+              );
+              elements.installTitle.textContent =
+                progress.stage === "ready"
+                  ? "Speech model ready"
+                  : "Preparing speech model";
+              elements.installDetail.textContent =
+                progress.stage === "downloading" &&
+                progress.percent !== undefined
+                  ? `Downloading ${Math.round(progress.percent)}%`
+                  : (progress.message ?? progress.stage);
+            },
+          });
+
+          const capabilities = await seda.capabilities();
+          elements.runtime.textContent = capabilities.runtime;
+          elements.model.textContent = capabilities.model;
+          elements.mode.textContent = capabilities.streaming;
+          elements.progressFill.style.width = "100%";
+          elements.progress.setAttribute("aria-valuenow", "100");
+          elements.installTitle.textContent = "Speech model ready";
+          elements.installDetail.textContent =
+            "Cached locally for your next visit";
+          elements.load.textContent = "Ready";
+          elements.talk.disabled = false;
+          setState("Ready", "ready");
+        } catch (error) {
+          seda = undefined;
+          elements.load.disabled = false;
+          elements.load.textContent = "Try again";
+          showError(error);
+        }
+      }
+
+      async function beginRecording() {
+        if (!seda || microphonePromise || finishing) return;
+
+        clearError();
+        recordingRequested = true;
+        elements.talk.dataset.recording = "true";
+        elements.talk.textContent = "Listening… release to finish";
+        elements.cancel.disabled = false;
+        elements.transcript.dataset.empty = "true";
+        elements.transcript.textContent = "Requesting microphone…";
+        setState("Requesting microphone", "recording");
+        startTimer();
+
+        const pending = seda.microphone({
+          language: "en",
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          partialIntervalMs: 750,
+          onTranscript: renderTranscript,
+        });
+        microphonePromise = pending;
+
+        try {
+          await pending;
+          if (recordingRequested && microphonePromise === pending) {
+            setState("Listening", "recording");
+          }
+        } catch (error) {
+          if (microphonePromise === pending) {
+            microphonePromise = undefined;
+          }
+          recordingRequested = false;
+          resetRecordingControls();
+          showError(error);
+        }
+      }
+
+      function resetRecordingControls() {
+        elements.talk.dataset.recording = "false";
+        elements.talk.textContent = "Hold to talk";
+        elements.talk.disabled = !seda;
+        elements.cancel.disabled = true;
+      }
+
+      async function finishRecording(commit) {
+        const pending = microphonePromise;
+        if (!pending || finishing) return;
+
+        recordingRequested = false;
+        microphonePromise = undefined;
+        finishing = true;
+        elements.talk.disabled = true;
+        elements.cancel.disabled = true;
+        setState(commit ? "Finishing" : "Cancelling");
+        stopTimer(commit ? "Finalizing…" : "Cancelled");
+
+        try {
+          const microphone = await pending;
+          if (commit) {
+            const final = await microphone.stop();
+            elements.transcript.dataset.empty = String(!final.text);
+            elements.transcript.textContent =
+              final.text || "No speech detected. Try again.";
+            stopTimer(
+              final.durationMs > 0
+                ? `${(final.durationMs / 1_000).toFixed(1)} seconds`
+                : "Complete",
+            );
+          } else {
+            await microphone.cancel();
+            elements.transcript.dataset.empty = "true";
+            elements.transcript.textContent = "Recording cancelled.";
+          }
+          setState("Ready", "ready");
+        } catch (error) {
+          showError(error);
+        } finally {
+          finishing = false;
+          resetRecordingControls();
+        }
+      }
+
+      elements.load.addEventListener("click", loadSeda);
+
+      elements.talk.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        elements.talk.setPointerCapture(event.pointerId);
+        void beginRecording();
+      });
+
+      elements.talk.addEventListener("pointerup", (event) => {
+        event.preventDefault();
+        void finishRecording(true);
+      });
+
+      elements.talk.addEventListener("pointercancel", () => {
+        void finishRecording(false);
+      });
+
+      elements.cancel.addEventListener("click", () => {
+        void finishRecording(false);
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          void finishRecording(false);
+          return;
+        }
+        if (
+          event.key === "Shift" &&
+          !event.repeat &&
+          document.activeElement !== elements.load
+        ) {
+          event.preventDefault();
+          void beginRecording();
+        }
+      });
+
+      window.addEventListener("keyup", (event) => {
+        if (event.key !== "Shift") return;
+        event.preventDefault();
+        void finishRecording(true);
+      });
+
+      window.addEventListener("pagehide", () => {
+        void seda?.close();
+      });
+    </script>
+  </body>
+</html>
