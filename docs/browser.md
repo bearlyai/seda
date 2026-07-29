@@ -10,6 +10,9 @@ Seda has two browser integrations:
 Both expose `microphone()`, `listen()`, transcript revisions, `stop()`, and
 `cancel()`. Application UI does not handle WAV files or random blobs.
 
+Try the complete microphone path in the
+[live Seda browser demo](https://bearlyai.github.io/seda/).
+
 ## In-browser: complete push-to-talk
 
 Install:
