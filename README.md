@@ -295,7 +295,7 @@ browser and native capability tiers.
 ## Build and test
 
 Requirements for the core: Rust 1.90, Node 22, and pnpm 11.10. SDK
-contributors additionally need Python 3.11+, Go 1.23+, and Swift 6.
+contributors additionally need Python 3.11+, Go 1.23+, and Swift 5.10+.
 
 ```sh
 pnpm install --frozen-lockfile
