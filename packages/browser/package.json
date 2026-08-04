@@ -25,10 +25,10 @@
     "@bearlyai/seda": "workspace:*"
   },
   "devDependencies": {
-    "@huggingface/transformers": "3.7.6",
-    "@webgpu/types": "0.1.69",
+    "@huggingface/transformers": "4.2.0",
+    "@webgpu/types": "0.1.71",
     "esbuild": "0.28.1",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "engines": {
