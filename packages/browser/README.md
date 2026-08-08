@@ -12,8 +12,8 @@ the GitHub release:
 
 ```sh
 pnpm add \
-  https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-0.2.0.tgz \
-  https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-browser-0.2.0.tgz
+  https://github.com/bearlyai/seda/releases/download/v0.3.0/bearlyai-seda-0.3.0.tgz \
+  https://github.com/bearlyai/seda/releases/download/v0.3.0/bearlyai-seda-browser-0.3.0.tgz
 ```
 
 Use a normal browser bundler such as Vite, webpack, Parcel, or esbuild. The

@@ -15,7 +15,7 @@ import type {
 } from "./types.js";
 import { InferenceWorker } from "./worker-host.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 const PROTOCOL = 1;
 
 export class SedaBrowser {

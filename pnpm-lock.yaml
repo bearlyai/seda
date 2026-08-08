@@ -25,11 +25,10 @@ importers:
         version: 7.3.6(@types/node@24.13.3)
 
   packages/browser:
-    dependencies:
+    devDependencies:
       '@bearlyai/seda':
         specifier: workspace:*
         version: link:../client
-    devDependencies:
       '@huggingface/transformers':
         specifier: 3.7.6
         version: 3.7.6(@types/node@24.13.3)
@@ -66,13 +65,13 @@ importers:
 
   packages/node:
     dependencies:
-      '@bearlyai/seda':
-        specifier: workspace:*
-        version: link:../client
       ws:
         specifier: ^8.18.2
         version: 8.21.1
     devDependencies:
+      '@bearlyai/seda':
+        specifier: workspace:*
+        version: link:../client
       '@types/node':
         specifier: ^24.0.3
         version: 24.13.3

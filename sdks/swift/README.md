@@ -8,7 +8,7 @@ iOS 16+.
 Add the package and link the `Seda` product:
 
 ```swift
-.package(url: "https://github.com/bearlyai/seda.git", from: "0.2.0")
+.package(url: "https://github.com/bearlyai/seda.git", from: "0.3.0")
 ```
 
 On macOS, prepare and launch the helper by exact model ID:
