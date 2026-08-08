@@ -9,6 +9,9 @@ minimumReleaseAgeStrict: true
 trustLockfile: false
 
 overrides:
+  # Vite/PostCSS uses only nanoid's stable top-level API. Pin the already-aged,
+  # unaffected ESM release while the new 3.x security patch is quarantined.
+  nanoid: "5.1.16"
   sharp: "0.35.3"
 
 allowBuilds:

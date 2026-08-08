@@ -67,7 +67,9 @@ jobs:
         run: pnpm test
 
       - name: Build JavaScript packages
-        run: pnpm build
+        run: |
+          pnpm build
+          pnpm check:package-install
 
   browser:
     name: Browser microphone

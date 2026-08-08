@@ -1,6 +1,6 @@
 {
   "name": "@bearlyai/seda-node",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lifecycle-managed Seda sidecar for Node and Electron",
   "type": "module",
   "license": "Apache-2.0",
@@ -21,10 +21,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@bearlyai/seda": "workspace:*",
     "ws": "^8.18.2"
   },
+  "peerDependencies": {
+    "@bearlyai/seda": "^0.3.0"
+  },
   "devDependencies": {
+    "@bearlyai/seda": "workspace:*",
     "@types/node": "^24.0.3",
     "@types/ws": "^8.18.1",
     "typescript": "^5.8.3",
