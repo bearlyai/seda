@@ -27,24 +27,24 @@ futures-util = "0.3.31"
 hex = "0.4.3"
 hound = "3.5.1"
 http = "1.3.1"
-libloading = "0.8.8"
+libloading = "0.9.0"
 reqwest = { version = "0.12.20", default-features = false, features = ["json", "rustls-tls", "stream"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-sha2 = "0.10.9"
+sha2 = "0.11.0"
 subtle = "2.6.1"
 tar = "0.4.44"
 tempfile = "3.20.0"
 thiserror = "2.0.12"
 tokio = { version = "1.45.1", features = ["fs", "io-util", "macros", "net", "rt-multi-thread", "signal", "sync"] }
-tokio-tungstenite = "0.27.0"
+tokio-tungstenite = "0.29.0"
 tower = { version = "0.5.2", features = ["util"] }
-tower-http = { version = "0.6.6", features = ["catch-panic", "cors", "request-id", "trace"] }
+tower-http = { version = "0.7.0", features = ["catch-panic", "cors", "request-id", "trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
 url = "2.5.4"
 uuid = { version = "1.17.0", features = ["serde", "v4"] }
-zip = { version = "4.2.0", default-features = false, features = ["deflate"] }
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
 
 [profile.release]
 lto = "thin"
