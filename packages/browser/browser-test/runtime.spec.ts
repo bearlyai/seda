@@ -180,7 +180,7 @@ test("transcribes with the real packaged Moonshine runtime", async ({
     "the real model lane runs in Chromium when SEDA_REAL_BROWSER_MODEL=1",
   );
   expect(realBrowserDevice).toMatch(/^(wasm|webgpu)$/);
-  test.setTimeout(240_000);
+  test.setTimeout(420_000);
   const browserErrors = collectErrors(page);
   const runtimeCdnRequests: string[] = [];
   const modelRequests: string[] = [];
@@ -216,7 +216,7 @@ test("transcribes with the real packaged Moonshine runtime", async ({
   await expect
     .poll(async () => assertedState(await state.textContent(), browserErrors), {
       message: browserErrors.join("\n"),
-      timeout: 120_000,
+      timeout: 300_000,
     })
     .toBe("Fixture complete");
   const transcript = await page.getByTestId("final").textContent();

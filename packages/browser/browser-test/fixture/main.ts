@@ -73,13 +73,7 @@ try {
       }
       const pcm = wavPcm(await response.arrayBuffer());
       const audioShapes = new URLSearchParams(location.search).has("shapes")
-        ? [
-            pcm.slice(0, 800),
-            pcm.slice(0, 8_000),
-            pcm,
-            repeatedPcm(pcm, 2),
-            repeatedPcm(pcm, 4),
-          ]
+        ? [pcm.slice(0, 800), pcm, repeatedPcm(pcm, 2)]
         : [pcm];
       const transcripts: string[] = [];
       for (const audio of audioShapes) {

@@ -2,7 +2,7 @@
 
 Seda follows semantic versioning. Notable changes are recorded here.
 
-## 0.3.1
+## 0.3.2
 
 - Upgraded Seda Browser to Transformers.js 4.2 and its rewritten native WebGPU
   backend, replacing the experimental JSEP path used by 3.x.

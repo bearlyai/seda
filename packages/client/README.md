@@ -9,7 +9,7 @@ Until npm trusted publishing is configured, install the package attached to the
 GitHub release:
 
 ```sh
-pnpm add https://github.com/bearlyai/seda/releases/download/v0.3.1/bearlyai-seda-0.3.1.tgz
+pnpm add https://github.com/bearlyai/seda/releases/download/v0.3.2/bearlyai-seda-0.3.2.tgz
 ```
 
 Start the native companion with your exact page origin:
