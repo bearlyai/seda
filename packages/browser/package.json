@@ -1,6 +1,6 @@
 {
   "name": "@bearlyai/seda-browser",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Private, in-browser speech recognition for Seda using WebGPU or WASM",
   "type": "module",
   "license": "Apache-2.0",
@@ -13,6 +13,7 @@
   },
   "files": [
     "dist",
+    "src",
     "README.md",
     "THIRD_PARTY_NOTICES.md"
   ],
@@ -22,13 +23,14 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@bearlyai/seda": "^0.3.0"
+    "@bearlyai/seda": "^0.3.1"
   },
   "devDependencies": {
     "@bearlyai/seda": "workspace:*",
-    "@huggingface/transformers": "3.7.6",
+    "@huggingface/transformers": "4.2.0",
     "@webgpu/types": "0.1.69",
     "esbuild": "0.28.1",
+    "onnxruntime-web": "1.26.0-dev.20260416-b7804b056c",
     "typescript": "^5.8.3",
     "vitest": "^4.1.10"
   },

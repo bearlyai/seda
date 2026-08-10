@@ -1,6 +1,6 @@
 {
   "name": "@bearlyai/seda",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Typed browser and Node client for the Seda local speech service",
   "type": "module",
   "license": "Apache-2.0",
@@ -13,6 +13,7 @@
   },
   "files": [
     "dist",
+    "src",
     "README.md"
   ],
   "scripts": {

@@ -19,8 +19,8 @@ Install:
 
 ```sh
 pnpm add \
-  https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-0.2.0.tgz \
-  https://github.com/bearlyai/seda/releases/download/v0.2.0/bearlyai-seda-browser-0.2.0.tgz
+  https://github.com/bearlyai/seda/releases/download/v0.3.1/bearlyai-seda-0.3.1.tgz \
+  https://github.com/bearlyai/seda/releases/download/v0.3.1/bearlyai-seda-browser-0.3.1.tgz
 ```
 
 Initialize once, before the first recording:
@@ -100,10 +100,11 @@ button.addEventListener("pointercancel", () => {
 `prepare()` is the installation boundary. It downloads the immutable
 `onnx-community/moonshine-tiny-ONNX` revision from Hugging Face on first use,
 uses the browser cache on later loads, starts a module Worker, selects WebGPU
-when available, falls back to WASM, and warms the model. Its promise resolves
-only when the first recording can begin. `seda.model` and
-`seda.capabilities().resolvedModel` expose the exact ID, revision, variant, and
-runtime that were loaded.
+when available, and warms the model. With `device: "auto"`, failures during
+either preparation or real WebGPU inference reload WASM and retry the same
+audio. Its promise resolves only when the first recording can begin.
+`seda.model` and `seda.capabilities().resolvedModel` expose the exact ID,
+revision, variant, and currently active runtime.
 
 Inference stays in the Worker so it cannot block rendering. Audio stays inside
 the page and worker. Seda Browser starts no server, opens no port, creates no
@@ -223,8 +224,8 @@ request. Call `cancel()` if a key is released during a startup race. Call
 - Unless assets are mirrored, `connect-src` must permit
   `https://huggingface.co` and `https://cdn-lfs.huggingface.co`.
 - WebGPU is an acceleration tier, not a requirement. WASM is the fallback.
-- The application build emits roughly 22 MB of ONNX runtime assets. First use
-  additionally downloads roughly 55 MB of model files; cache eviction can
+- The application build emits roughly 34 MB of ONNX runtime assets. First use
+  additionally downloads roughly 80 MB of model files; cache eviction can
   require another model download.
 - The current browser model is English-only. Seda rejects unsupported stream
   languages before recording. Use native-hosted Nemotron for multilingual
@@ -232,8 +233,8 @@ request. Call `cancel()` if a key is released during a startup race. Call
 
 The deterministic session API runs in Chromium, Firefox, and WebKit on every
 pull request. Chromium additionally runs the complete fake-device microphone
-path. A separate GitHub lane downloads the pinned real model and transcribes a
-checksum-verified speech fixture through actual browser WASM.
+path. Separate GitHub lanes download the pinned real model and transcribe short,
+normal, and repeated checksum-verified speech through actual WebGPU and WASM.
 
 ## Native-hosted browser or Electron
 

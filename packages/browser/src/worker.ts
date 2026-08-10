@@ -1,6 +1,11 @@
 /// <reference lib="webworker" />
 
 import { env, pipeline } from "@huggingface/transformers";
+import {
+  InferenceRuntime,
+  type InferenceBackend,
+  type InferenceResult,
+} from "./inference.js";
 import type { WorkerRequest, WorkerResponse } from "./protocol.js";
 import type {
   BrowserDevice,
@@ -11,16 +16,16 @@ import type {
 const worker = self as DedicatedWorkerGlobalScope;
 const SAMPLE_RATE = 16_000;
 
-interface TranscriptionResult {
-  text: string;
-}
-
 type Transcriber = (
   audio: Float32Array,
   options?: { language?: string },
-) => Promise<TranscriptionResult>;
+) => Promise<InferenceResult>;
 
-let transcriber: Transcriber | undefined;
+interface DisposableTranscriber extends Transcriber {
+  dispose?: () => Promise<void>;
+}
+
+let inferenceRuntime: InferenceRuntime | undefined;
 let inferenceChain: Promise<void> = Promise.resolve();
 
 env.allowLocalModels = false;
@@ -29,16 +34,22 @@ const wasmBackend = env.backends.onnx.wasm;
 if (!wasmBackend) {
   throw new Error("Transformers.js did not initialize its WASM backend");
 }
-wasmBackend.wasmPaths = {
-  mjs: new URL(
-    "./ort-wasm-simd-threaded.jsep.mjs",
-    import.meta.url,
-  ),
-  wasm: new URL(
-    "./ort-wasm-simd-threaded.jsep.wasm",
-    import.meta.url,
-  ),
-};
+const useAsyncifyWasm = !isSafari();
+wasmBackend.wasmPaths = useAsyncifyWasm
+  ? {
+      mjs: new URL(
+        "./ort-wasm-simd-threaded.asyncify.mjs",
+        import.meta.url,
+      ),
+      wasm: new URL(
+        "./ort-wasm-simd-threaded.asyncify.wasm",
+        import.meta.url,
+      ),
+    }
+  : {
+      mjs: new URL("./ort-wasm-simd-threaded.mjs", import.meta.url),
+      wasm: new URL("./ort-wasm-simd-threaded.wasm", import.meta.url),
+    };
 
 worker.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
   // DedicatedWorker messages normally have an empty origin because the port
@@ -57,16 +68,20 @@ worker.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
 async function handleRequest(request: WorkerRequest): Promise<void> {
   try {
     if (request.type === "load") {
-      const device = await loadModel(request);
+      inferenceRuntime = await loadModel(request);
+      const device = inferenceRuntime.device;
+      if (!device) {
+        throw new Error("no supported inference device is available");
+      }
       post({ type: "loaded", requestId: request.requestId, device });
       return;
     }
-    if (!transcriber) {
+    if (!inferenceRuntime) {
       throw new Error("model is not loaded");
     }
-    const result = await transcriber(
+    const result = await inferenceRuntime.transcribe(
       request.audio,
-      request.language === undefined ? {} : { language: request.language },
+      request.language,
     );
     post({
       type: "result",
@@ -84,71 +99,91 @@ async function handleRequest(request: WorkerRequest): Promise<void> {
 
 async function loadModel(
   request: Extract<WorkerRequest, { type: "load" }>,
-): Promise<ResolvedBrowserDevice> {
+): Promise<InferenceRuntime> {
   const candidates = await devicesFor(request.device);
-  let lastError: unknown;
-  for (const device of candidates) {
-    try {
-      const loaded = (await pipeline(
-        "automatic-speech-recognition",
-        request.modelId,
-        {
-          revision: request.revision,
-          device,
-          dtype:
-            device === "webgpu"
-              ? {
-                  encoder_model: "fp32",
-                  decoder_model_merged: "q4",
-                }
-              : {
-                  encoder_model: "fp32",
-                  decoder_model_merged: "q8",
-                },
-          progress_callback: (value: unknown) => {
-            const progress = modelProgress(value, device);
-            if (progress) {
-              post({ type: "progress", progress });
-            }
-          },
-        },
-      )) as unknown as Transcriber;
-
-      post({
-        type: "progress",
-        progress: {
-          stage: "compiling",
-          device,
-          message: `Warming ${device} inference`,
-        },
-      });
-      await loaded(new Float32Array(SAMPLE_RATE));
-      transcriber = loaded;
-      post({
-        type: "progress",
-        progress: {
-          stage: "ready",
-          device,
-          message: `Ready on ${device}`,
-        },
-      });
-      return device;
-    } catch (cause) {
-      lastError = cause;
-      if (request.device !== "auto" || device === "wasm") {
-        throw cause;
-      }
+  const runtime = new InferenceRuntime(
+    candidates,
+    (device) => loadBackend(request, device),
+    (from, to) => {
       post({
         type: "progress",
         progress: {
           stage: "loading",
-          device: "wasm",
-          message: "WebGPU was unavailable; falling back to WASM",
+          device: to,
+          message: `${deviceLabel(from)} failed; retrying on ${deviceLabel(to)}`,
         },
       });
-    }
+    },
+  );
+  await runtime.prepare();
+  return runtime;
+}
+
+async function loadBackend(
+  request: Extract<WorkerRequest, { type: "load" }>,
+  device: ResolvedBrowserDevice,
+): Promise<InferenceBackend> {
+  const loaded = (await pipeline(
+    "automatic-speech-recognition",
+    request.modelId,
+    {
+      revision: request.revision,
+      device,
+      dtype:
+        device === "webgpu"
+          ? {
+              encoder_model: "fp32",
+              decoder_model_merged: "q4",
+            }
+          : {
+              encoder_model: "fp32",
+              decoder_model_merged: "q4",
+            },
+      progress_callback: (value: unknown) => {
+        const progress = modelProgress(value, device);
+        if (progress) {
+          post({ type: "progress", progress });
+        }
+      },
+    },
+  )) as unknown as DisposableTranscriber;
+
+  post({
+    type: "progress",
+    progress: {
+      stage: "compiling",
+      device,
+      message: `Warming ${deviceLabel(device)} inference`,
+    },
+  });
+  await loaded(new Float32Array(SAMPLE_RATE));
+  post({
+    type: "progress",
+    progress: {
+      stage: "ready",
+      device,
+      message: `Ready on ${deviceLabel(device)}`,
+    },
+  });
+  return {
+    transcribe: (audio, language) =>
+      loaded(
+        paddedModelInput(audio),
+        language === undefined ? {} : { language },
+      ),
+    close: async () => {
+      await loaded.dispose?.();
+    },
+  };
+}
+
+function paddedModelInput(audio: Float32Array): Float32Array {
+  if (audio.length >= SAMPLE_RATE) {
+    return audio;
   }
-  throw lastError ?? new Error("no supported inference device is available");
+  const padded = new Float32Array(SAMPLE_RATE);
+  padded.set(audio);
+  return padded;
 }
 
 async function devicesFor(
@@ -169,6 +204,22 @@ async function supportsWebGpu(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function isSafari(): boolean {
+  const vendor = typeof navigator.vendor === "string" ? navigator.vendor : "";
+  const userAgent =
+    typeof navigator.userAgent === "string" ? navigator.userAgent : "";
+  return (
+    (vendor.includes("Apple") || userAgent.includes("Safari")) &&
+    !/CriOS|FxiOS|EdgiOS|OPiOS|mercury|brave|Chrome|Android/i.test(
+      userAgent,
+    )
+  );
+}
+
+function deviceLabel(device: ResolvedBrowserDevice): string {
+  return device === "webgpu" ? "WebGPU" : "WASM";
 }
 
 function modelProgress(

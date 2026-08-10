@@ -10,6 +10,7 @@ const workspace = resolve(directory, "../../..");
 const realAudio =
   process.env["SEDA_REAL_AUDIO"] ??
   resolve(workspace, ".seda/fixtures/speech.wav");
+const realBrowserDevice = process.env["SEDA_REAL_BROWSER_DEVICE"];
 
 let server: ViteDevServer;
 let pageUrl: string;
@@ -122,7 +123,7 @@ test("keeps the in-process session API portable across browser engines", async (
   expect(result.model).toMatchObject({
     id: "onnx-community/moonshine-tiny-ONNX",
     revision: "a6da1241cd305dcd64eab1edbd615f2bb9aabb95",
-    variant: "q8",
+    variant: "q4",
     runtime: "transformers.js/wasm",
   });
   expect(result.language).toEqual({
@@ -169,7 +170,7 @@ test("closing the browser runtime releases an active microphone", async ({
   expect(browserErrors).toEqual([]);
 });
 
-test("transcribes with the real Moonshine WASM model", async ({
+test("transcribes with the real packaged Moonshine runtime", async ({
   page,
   browserName,
 }) => {
@@ -178,13 +179,20 @@ test("transcribes with the real Moonshine WASM model", async ({
       browserName !== "chromium",
     "the real model lane runs in Chromium when SEDA_REAL_BROWSER_MODEL=1",
   );
+  expect(realBrowserDevice).toMatch(/^(wasm|webgpu)$/);
   test.setTimeout(240_000);
   const browserErrors = collectErrors(page);
   const runtimeCdnRequests: string[] = [];
+  const modelRequests: string[] = [];
   page.on("request", (request) => {
     if (new URL(request.url()).hostname === "cdn.jsdelivr.net") {
       runtimeCdnRequests.push(request.url());
     }
+  });
+  await page.route("https://huggingface.co/**", async (route) => {
+    modelRequests.push(route.request().url());
+    const response = await route.fetch({ timeout: 180_000 });
+    await route.fulfill({ response });
   });
   await page.route("**/speech.wav", async (route) => {
     await route.fulfill({
@@ -193,18 +201,32 @@ test("transcribes with the real Moonshine WASM model", async ({
     });
   });
 
-  await page.goto(`${pageUrl}?device=wasm`);
+  await page.goto(`${pageUrl}?device=${realBrowserDevice}&shapes=1`);
   const state = page.getByTestId("state");
-  await expect(state, browserErrors.join("\n")).toHaveText("Ready", {
-    timeout: 180_000,
-  });
-  await page.getByRole("button", { name: "Transcribe fixture" }).click();
-  await expect(state, browserErrors.join("\n")).toHaveText(
-    "Fixture complete",
-    { timeout: 60_000 },
+  await expect
+    .poll(async () => assertedState(await state.textContent(), browserErrors), {
+      message: browserErrors.join("\n"),
+      timeout: 180_000,
+    })
+    .toBe("Ready");
+  await expect(page.getByTestId("runtime")).toHaveText(
+    `transformers.js/${realBrowserDevice}`,
   );
+  await page.getByRole("button", { name: "Transcribe fixture" }).click();
+  await expect
+    .poll(async () => assertedState(await state.textContent(), browserErrors), {
+      message: browserErrors.join("\n"),
+      timeout: 120_000,
+    })
+    .toBe("Fixture complete");
   const transcript = await page.getByTestId("final").textContent();
   expect(transcript?.toLowerCase()).toMatch(/phoebe|portrait|observed/);
+  expect(modelRequests.length).toBeGreaterThan(0);
+  expect(modelRequests).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("a6da1241cd305dcd64eab1edbd615f2bb9aabb95"),
+    ]),
+  );
   expect(runtimeCdnRequests).toEqual([]);
   expect(browserErrors).toEqual([]);
 });
@@ -220,6 +242,16 @@ function collectErrors(page: import("@playwright/test").Page): string[] {
     }
   });
   return errors;
+}
+
+function assertedState(
+  state: string | null,
+  browserErrors: string[],
+): string | null {
+  if (state?.startsWith("Error:")) {
+    throw new Error([state, ...browserErrors].join("\n"));
+  }
+  return state;
 }
 
 function fakeInferenceWorker(): string {

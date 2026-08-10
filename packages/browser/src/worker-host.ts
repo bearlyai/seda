@@ -25,6 +25,7 @@ export class InferenceWorker implements InferenceHost {
   readonly #pending = new Map<number, PendingRequest<unknown>>();
   #requestId = 0;
   #closed = false;
+  #device: ResolvedBrowserDevice | undefined;
   #onProgress: ((progress: ModelLoadProgress) => void) | undefined;
 
   private constructor(worker: Worker) {
@@ -100,6 +101,10 @@ export class InferenceWorker implements InferenceHost {
     }
   }
 
+  get device(): ResolvedBrowserDevice | undefined {
+    return this.#device;
+  }
+
   transcribe(audio: Float32Array, language?: string): Promise<string> {
     const owned = audio.slice();
     return this.#request<string>(
@@ -168,6 +173,9 @@ export class InferenceWorker implements InferenceHost {
   readonly #handleMessage = (event: MessageEvent<WorkerResponse>): void => {
     const response = event.data;
     if (response.type === "progress") {
+      if (response.progress.stage === "ready" && response.progress.device) {
+        this.#device = response.progress.device;
+      }
       this.#onProgress?.(response.progress);
       return;
     }
@@ -187,6 +195,7 @@ export class InferenceWorker implements InferenceHost {
       return;
     }
     if (response.type === "loaded") {
+      this.#device = response.device;
       pending.resolve({ device: response.device });
       return;
     }

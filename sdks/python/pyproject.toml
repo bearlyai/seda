@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bearlyai-seda"
-version = "0.3.0"
+version = "0.3.1"
 description = "Typed Python client for the local Seda speech runtime"
 readme = "README.md"
 requires-python = ">=3.11"

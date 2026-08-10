@@ -15,28 +15,28 @@ import type {
 } from "./types.js";
 import { InferenceWorker } from "./worker-host.js";
 
-const VERSION = "0.3.0";
+const VERSION = "0.3.1";
 const PROTOCOL = 1;
 
 export class SedaBrowser {
   readonly #host: InferenceWorker;
   readonly #modelId: keyof typeof BROWSER_MODELS;
-  readonly #device: ResolvedBrowserDevice;
   readonly #sessions = new Set<BrowserSession>();
   readonly #microphones = new Set<MicrophoneSession>();
   #closed = false;
-  readonly model: ModelIdentity;
 
   private constructor(
     host: InferenceWorker,
     modelId: keyof typeof BROWSER_MODELS,
-    device: ResolvedBrowserDevice,
   ) {
     this.#host = host;
     this.#modelId = modelId;
-    this.#device = device;
-    const model = BROWSER_MODELS[modelId];
-    this.model = {
+  }
+
+  get model(): ModelIdentity {
+    const device = this.#resolvedDevice();
+    const model = BROWSER_MODELS[this.#modelId];
+    return {
       id: model.id,
       revision: model.revision,
       variant: model.variants[device],
@@ -79,7 +79,7 @@ export class SedaBrowser {
         ...(options.onProgress ? { onProgress: options.onProgress } : {}),
       },
     );
-    return new SedaBrowser(loaded.host, modelId, loaded.device);
+    return new SedaBrowser(loaded.host, modelId);
   }
 
   /** @deprecated Use `SedaBrowser.prepare()`. */
@@ -99,8 +99,9 @@ export class SedaBrowser {
   async capabilities(): Promise<Capabilities> {
     this.#assertOpen();
     const model = BROWSER_MODELS[this.#modelId];
+    const device = this.#resolvedDevice();
     return {
-      runtime: `transformers.js/${this.#device}`,
+      runtime: `transformers.js/${device}`,
       model: model.id,
       resolvedModel: this.model,
       language: {
@@ -203,6 +204,18 @@ export class SedaBrowser {
         recoverable: false,
       });
     }
+  }
+
+  #resolvedDevice(): ResolvedBrowserDevice {
+    const device = this.#host.device;
+    if (!device) {
+      throw new SedaError({
+        code: "runtime_failed",
+        message: "Seda Browser has no active inference device",
+        recoverable: false,
+      });
+    }
+    return device;
   }
 }
 

@@ -25,7 +25,7 @@ export const BROWSER_MODELS: Readonly<
     revision: "a6da1241cd305dcd64eab1edbd615f2bb9aabb95",
     variants: {
       webgpu: "q4",
-      wasm: "q8",
+      wasm: "q4",
     },
     displayName: "Moonshine Tiny ONNX",
     languages: ["en"],

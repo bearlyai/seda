@@ -16,12 +16,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  browser-wasm:
-    name: Browser WASM / Moonshine Tiny
-    runs-on: ubuntu-24.04
+  browser:
+    name: Browser ${{ matrix.device }} / Moonshine Tiny
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: WASM
+            runtime: wasm
+            runner: ubuntu-24.04
+          - device: WebGPU
+            runtime: webgpu
+            runner: macos-14
     env:
       SEDA_REAL_AUDIO: ${{ github.workspace }}/.seda-ci/fixtures/speech.wav
+      SEDA_REAL_BROWSER_DEVICE: ${{ matrix.runtime }}
       SEDA_REAL_BROWSER_MODEL: "1"
 
     steps:
@@ -52,12 +63,12 @@ jobs:
             "$SEDA_REAL_AUDIO" \
             "5fceacff0315d49cb59fcc505bcecf1ed5f2f35c2897b1e65a59f30e5d922150"
 
-      - name: Transcribe through the real browser WASM runtime
+      - name: Transcribe through the real packaged browser runtime
         run: >-
           pnpm exec playwright test
           packages/browser/browser-test/runtime.spec.ts
           --project chromium
-          --grep "real Moonshine"
+          --grep "real packaged Moonshine"
 
   compact-model:
     name: Compact model / ${{ matrix.name }}

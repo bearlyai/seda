@@ -44,8 +44,8 @@ GitHub release:
 
 ```sh
 pnpm add \
-  https://github.com/bearlyai/seda/releases/download/v0.3.0/bearlyai-seda-0.3.0.tgz \
-  https://github.com/bearlyai/seda/releases/download/v0.3.0/bearlyai-seda-browser-0.3.0.tgz
+  https://github.com/bearlyai/seda/releases/download/v0.3.1/bearlyai-seda-0.3.1.tgz \
+  https://github.com/bearlyai/seda/releases/download/v0.3.1/bearlyai-seda-browser-0.3.1.tgz
 ```
 
 Initialize the model once during application readiness:
@@ -278,7 +278,7 @@ explicit `final` flag. See [the complete API contract](docs/api.md).
 
 | Model ID | Variant | Download | Languages | Why |
 | --- | --- | ---: | --- | --- |
-| `onnx-community/moonshine-tiny-ONNX` | `q4` WebGPU / `q8` WASM | ~55 MB | English | Install-free, buffered revisions |
+| `onnx-community/moonshine-tiny-ONNX` | `q4` | ~80 MB | English | Install-free, buffered revisions |
 | `nvidia/parakeet_realtime_eou_120m-v1` | `q4_k` | 129 MB | English | Small, true streaming, EOU-aware |
 | `nvidia/nemotron-3.5-asr-streaming-0.6b` | `q4_k` | 718 MB | 32 ready locales | Multilingual, punctuation, efficient |
 | `nvidia/nemotron-3.5-asr-streaming-0.6b` | `q8_0` | 984 MB | 32 ready locales | More weight precision |

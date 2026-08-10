@@ -29,6 +29,7 @@ export default defineConfig({
         permissions: ["microphone"],
         launchOptions: {
           args: [
+            "--enable-unsafe-webgpu",
             "--use-fake-device-for-media-stream",
             "--use-fake-ui-for-media-stream",
           ],

@@ -15,7 +15,9 @@ let microphone: MicrophoneSession | undefined;
 try {
   const requestedDevice = new URLSearchParams(location.search).get("device");
   const seda = await SedaBrowser.prepare({
-    ...(requestedDevice === "wasm" ? { device: "wasm" as const } : {}),
+    ...(requestedDevice === "wasm" || requestedDevice === "webgpu"
+      ? { device: requestedDevice }
+      : {}),
     onProgress: (update) => {
       progress.textContent = `${update.stage}:${update.device ?? ""}`;
     },
@@ -69,13 +71,26 @@ try {
       if (!response.ok) {
         throw new Error(`fixture request failed with ${response.status}`);
       }
-      const session = await seda.listen({
-        language: "en",
-        partialIntervalMs: 5_000,
-      });
-      session.write(wavPcm(await response.arrayBuffer()));
-      const transcript = await session.commit();
-      final.textContent = transcript.text;
+      const pcm = wavPcm(await response.arrayBuffer());
+      const audioShapes = new URLSearchParams(location.search).has("shapes")
+        ? [
+            pcm.slice(0, 800),
+            pcm.slice(0, 8_000),
+            pcm,
+            repeatedPcm(pcm, 2),
+            repeatedPcm(pcm, 4),
+          ]
+        : [pcm];
+      const transcripts: string[] = [];
+      for (const audio of audioShapes) {
+        const session = await seda.listen({
+          language: "en",
+          partialIntervalMs: 5_000,
+        });
+        session.write(audio);
+        transcripts.push((await session.commit()).text);
+      }
+      final.textContent = transcripts.join(" | ");
       state.textContent = "Fixture complete";
     } catch (error) {
       reportError(error);
@@ -88,6 +103,14 @@ try {
   fixture.disabled = false;
 } catch (error) {
   reportError(error);
+}
+
+function repeatedPcm(fixture: Int16Array, repetitions: number): Int16Array {
+  const samples = new Int16Array(fixture.length * repetitions);
+  for (let index = 0; index < repetitions; index += 1) {
+    samples.set(fixture, fixture.length * index);
+  }
+  return samples;
 }
 
 function wavPcm(wav: ArrayBuffer): Int16Array {

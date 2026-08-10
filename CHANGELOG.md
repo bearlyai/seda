@@ -2,6 +2,24 @@
 
 Seda follows semantic versioning. Notable changes are recorded here.
 
+## 0.3.1
+
+- Upgraded Seda Browser to Transformers.js 4.2 and its rewritten native WebGPU
+  backend, replacing the experimental JSEP path used by 3.x.
+- Made automatic device selection recover from inference-time WebGPU failures,
+  not only model-loading failures. Seda closes the failed backend, loads WASM,
+  retries the same audio, and reports the active runtime through `model` and
+  `capabilities()`.
+- Pads sub-second recordings to Moonshine's minimum model input so quick
+  push-to-talk taps return normally instead of failing an ONNX convolution.
+- Uses Moonshine's Q4 decoder on both WebGPU and WASM. This avoids an ONNX
+  Runtime graph-optimization failure in the Q8 decoder and lets both backends
+  share the same cached model weights.
+- Includes TypeScript sources referenced by package source maps so consuming
+  Vite applications can resolve diagnostics without missing-source warnings.
+- Kept all ONNX runtime JavaScript and WASM assets inside the package, including
+  the runtime variants required by Chromium and Safari.
+
 ## 0.3.0
 
 - Made `SedaBrowser.prepare({ modelId })` the high-level readiness boundary.

@@ -2,11 +2,13 @@
 
 `@bearlyai/seda-browser` bundles code from:
 
-- Transformers.js 3.7.6, Apache License 2.0,
+- Transformers.js 4.2.0, Apache License 2.0,
   <https://github.com/huggingface/transformers.js>
 - `@huggingface/jinja` 0.5.9, MIT,
   <https://github.com/huggingface/huggingface.js>
-- ONNX Runtime Web 1.22.0 development revision, MIT,
+- `@huggingface/tokenizers` 0.1.3, Apache License 2.0,
+  <https://github.com/huggingface/tokenizers.js>
+- ONNX Runtime Web 1.26.0 development revision, MIT,
   <https://github.com/microsoft/onnxruntime>
 
 The package-level `LICENSE` contains the Apache License 2.0 text.

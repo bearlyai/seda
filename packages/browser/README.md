@@ -12,8 +12,8 @@ the GitHub release:
 
 ```sh
 pnpm add \
-  https://github.com/bearlyai/seda/releases/download/v0.3.0/bearlyai-seda-0.3.0.tgz \
-  https://github.com/bearlyai/seda/releases/download/v0.3.0/bearlyai-seda-browser-0.3.0.tgz
+  https://github.com/bearlyai/seda/releases/download/v0.3.1/bearlyai-seda-0.3.1.tgz \
+  https://github.com/bearlyai/seda/releases/download/v0.3.1/bearlyai-seda-browser-0.3.1.tgz
 ```
 
 Use a normal browser bundler such as Vite, webpack, Parcel, or esbuild. The
@@ -61,10 +61,12 @@ dictateButton.addEventListener("pointerup", async () => {
 ```
 
 `SedaBrowser.prepare()` downloads the pinned Moonshine Tiny model, stores it in
-the browser cache, loads it in a Worker, selects WebGPU when it works, falls
-back to WASM, and warms inference. It resolves only when speech recognition is
-ready. Call it during an install/readiness screen rather than on the first
-push-to-talk press. `create()` remains a deprecated compatibility alias.
+the browser cache, loads it in a Worker, selects WebGPU when it works, and warms
+inference. With `device: "auto"`, a WebGPU failure during either preparation or
+real transcription transparently reloads WASM and retries the same audio. The
+runtime resolves only when speech recognition is ready. Call it during an
+install/readiness screen rather than on the first push-to-talk press. `create()`
+remains a deprecated compatibility alias.
 
 `microphone()` requests access, creates an AudioWorklet, downmixes and resamples
 the selected device to 16 kHz, and starts inference. `stop()` releases every
@@ -165,7 +167,7 @@ audio blobs or PCM frames.
 - Allow model downloads from `https://huggingface.co` and
   `https://cdn-lfs.huggingface.co` in `connect-src`, unless you mirror the
   pinned assets.
-- Budget roughly 55 MB for the compact model, a 22 MB emitted ONNX runtime
+- Budget roughly 80 MB for the compact model, a 34 MB emitted ONNX runtime
   asset, and enough memory for a 30-second utterance.
 - Call `close()` when the application is done with speech recognition.
 

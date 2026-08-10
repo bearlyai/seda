@@ -6,7 +6,7 @@ Profiles remain optional aliases, not the primary API.
 
 | Runtime | Model ID | Variant | Alias | Download | Language mode | Output |
 | --- | --- | --- | --- | ---: | --- | --- |
-| Browser | `onnx-community/moonshine-tiny-ONNX` | `q4` WebGPU / `q8` WASM | — | ~55 MB | fixed English | buffered revisions, punctuation |
+| Browser | `onnx-community/moonshine-tiny-ONNX` | `q4` | — | ~80 MB | fixed English | buffered revisions, punctuation |
 | Native | `nvidia/parakeet_realtime_eou_120m-v1` | `q4_k` | `compact` | 129,133,984 bytes | fixed English | true streaming, EOU, word times |
 | Native | `nvidia/nemotron-3.5-asr-streaming-0.6b` | `q4_k` | `balanced` | 718,102,624 bytes | prompted, 32 locales, auto | true streaming, punctuation, word times |
 | Native | `nvidia/nemotron-3.5-asr-streaming-0.6b` | `q8_0` | `quality` | 983,696,512 bytes | prompted, 32 locales, auto | same model, higher weight precision |
@@ -45,14 +45,15 @@ hard-coded product tiers.
 `@bearlyai/seda-browser` pins
 `onnx-community/moonshine-tiny-ONNX` at revision
 `a6da1241cd305dcd64eab1edbd615f2bb9aabb95`. The English Moonshine model and
-ONNX distribution are MIT licensed. Transformers.js 3.7.6 is Apache-2.0.
+ONNX distribution are MIT licensed. Transformers.js 4.2.0 is Apache-2.0.
 
-The Worker uses the full-precision encoder and Q8 merged decoder on WASM. WebGPU
-uses a Q4 merged decoder. WebGPU is preferred automatically and WASM is the
-portable fallback. The model is cached by the browser rather than placed in
-Seda’s native data directory.
+The Worker uses the full-precision encoder and Q4 merged decoder on WebGPU and
+WASM. Sharing the same pinned weights makes inference fallback immediate after
+the WASM runtime initializes. WebGPU is preferred automatically and WASM is the
+portable fallback during both model preparation and inference. The model is
+cached by the browser rather than placed in Seda’s native data directory.
 
-Moonshine Tiny is the browser default because its roughly 55 MB working set is
+Moonshine Tiny is the browser default because its roughly 80 MB download is
 materially more deployable than the native Parakeet catalog and it has a proven
 Transformers.js browser path. It is not cache-aware streaming: Seda periodically
 decodes the current utterance, exposes those outputs as replaceable buffered
