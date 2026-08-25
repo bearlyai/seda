@@ -21,16 +21,16 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "ws": "^8.18.2"
+    "ws": "^8.21.3"
   },
   "peerDependencies": {
     "@bearlyai/seda": "^0.3.0"
   },
   "devDependencies": {
     "@bearlyai/seda": "workspace:*",
-    "@types/node": "^24.0.3",
+    "@types/node": "^26.2.0",
     "@types/ws": "^8.18.1",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.4"
   },
   "engines": {

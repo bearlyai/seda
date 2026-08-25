@@ -21,11 +21,11 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@types/node": "^24.0.3",
+    "@types/node": "^26.2.0",
     "@types/ws": "^8.18.1",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "vitest": "^3.2.4",
-    "ws": "^8.18.2"
+    "ws": "^8.21.3"
   },
   "engines": {
     "node": ">=20"
